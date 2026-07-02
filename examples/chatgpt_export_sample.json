@@ -1,0 +1,55 @@
+[
+  {
+    "title": "Saturday debugging session",
+    "create_time": 1699000000.0,
+    "update_time": 1699000100.0,
+    "mapping": {
+      "aaa-000": {
+        "id": "aaa-000",
+        "message": {
+          "id": "aaa-000",
+          "author": {"role": "user"},
+          "content": {"content_type": "text", "parts": ["hey can you debug this .env for me?"]},
+          "create_time": 1699000000.0
+        },
+        "parent": null,
+        "children": ["aaa-001"]
+      },
+      "aaa-001": {
+        "id": "aaa-001",
+        "message": {
+          "id": "aaa-001",
+          "author": {"role": "assistant"},
+          "content": {"content_type": "text", "parts": ["sure, paste it"]},
+          "create_time": 1699000010.0
+        },
+        "parent": "aaa-000",
+        "children": ["aaa-002"]
+      },
+      "aaa-002": {
+        "id": "aaa-002",
+        "message": {
+          "id": "aaa-002",
+          "author": {"role": "user"},
+          "content": {"content_type": "text", "parts": [
+            "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\nAWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\nGITHUB_TOKEN=ghp_1234567890abcdefghijklmnopqrstuvwxyz1234\nOPENAI_API_KEY=sk-proj-abcdef1234567890abcdef1234567890abcdef\nDATABASE_URL=postgres://admin:hunter2@db.internal:5432/prod\nSTRIPE_KEY=sk_live_abcdef1234567890abcdef123456\nJWT=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkZyYW5nZWwifQ.SflKxwRJSMeKKF2QT4fwpXlPnQKjZwBvb0\n\nmy email is frangel@example.org and my SSN is 123-45-6789 and my card is 4111 1111 1111 1111"
+          ]},
+          "create_time": 1699000020.0
+        },
+        "parent": "aaa-001",
+        "children": ["aaa-003"]
+      },
+      "aaa-003": {
+        "id": "aaa-003",
+        "message": {
+          "id": "aaa-003",
+          "author": {"role": "assistant"},
+          "content": {"content_type": "text", "parts": ["looks good"]},
+          "create_time": 1699000030.0
+        },
+        "parent": "aaa-002",
+        "children": []
+      }
+    }
+  }
+]
