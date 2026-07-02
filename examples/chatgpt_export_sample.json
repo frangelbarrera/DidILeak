@@ -32,7 +32,7 @@
           "id": "aaa-002",
           "author": {"role": "user"},
           "content": {"content_type": "text", "parts": [
-            "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\nAWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\nGITHUB_TOKEN=ghp_1234567890abcdefghijklmnopqrstuvwxyz1234\nOPENAI_API_KEY=sk-proj-abcdef1234567890abcdef1234567890abcdef\nDATABASE_URL=postgres://admin:hunter2@db.internal:5432/prod\nSTRIPE_KEY=sk_live_abcdef1234567890abcdef123456\nJWT=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkZyYW5nZWwifQ.SflKxwRJSMeKKF2QT4fwpXlPnQKjZwBvb0\n\nmy email is frangel@example.org and my SSN is 123-45-6789 and my card is 4111 1111 1111 1111"
+            "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\nAWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\nGITHUB_TOKEN=ghp_1234567890abcdefghijklmnopqrstuvwxyz1234\nOPENAI_API_KEY=sk-proj-abcdef1234567890abcdef1234567890abcdef\nDATABASE_URL=postgres://admin:hunter2@db.internal:5432/prod\nSTRIPE_KEY=sk_live_abcdef1234567890abcdef123456\nJWT=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6InVzZXIifQ.SflKxwRJSMeKKF2QT4fwpXlPnQKjZwBvb0\n\nmy email is user@example.org and my SSN is 123-45-6789 and my card is 4111 1111 1111 1111"
           ]},
           "create_time": 1699000020.0
         },

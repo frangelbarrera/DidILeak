@@ -54,5 +54,5 @@ dashboard/.env*
 !dashboard/.env.example
 
 # reports
-spillage_report.*
-*.spillage.json
+didileak_report.*
+*.didileak.json

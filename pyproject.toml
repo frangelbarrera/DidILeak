@@ -47,9 +47,6 @@ Repository = "https://github.com/frangelbarrera/DidILeak"
 [tool.setuptools.packages.find]
 include = ["didileak*"]
 
-[tool.setuptools.package-data]
-didileak = ["data/*.json", "templates/*.html", "templates/*.md"]
-
 [tool.ruff]
 line-length = 100
 target-version = "py39"
