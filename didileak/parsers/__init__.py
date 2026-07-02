@@ -1,4 +1,6 @@
 """LLM export parsers. Each parser yields `Message` objects."""
+from __future__ import annotations
+
 from didileak.parsers.base import Parser
 from didileak.parsers.chatgpt import ChatGPTParser
 from didileak.parsers.claude import ClaudeParser
