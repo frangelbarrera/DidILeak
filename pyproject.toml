@@ -71,4 +71,4 @@ ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra -q --cov=didileak --cov-report=term-missing --cov-fail-under=80"
+addopts = "-ra -q --cov=didileak --cov-report=term-missing --cov-fail-under=90"

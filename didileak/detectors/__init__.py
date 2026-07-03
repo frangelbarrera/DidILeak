@@ -69,8 +69,9 @@ def _aws_access_key_valid(value: str) -> bool:
 
 def _github_token_valid(value: str) -> bool:
     # GitHub PATs: prefix + 36+ chars in [A-Za-z0-9]
-    # Reject obvious placeholders (case-insensitive, on word boundaries)
-    return not re.search(r"\b(EXAMPLE|FAKE|PLACEHOLDER|YOUR_TOKEN|XXXX)\b", value, re.I)
+    # Reject obvious placeholders (case-insensitive). No \b because
+    # placeholders are typically followed by digits (also word chars).
+    return not re.search(r"(EXAMPLE|FAKE|PLACEHOLDER|YOUR_TOKEN|XXXX)", value, re.I)
 
 
 def _is_uuid_like(value: str) -> bool:
