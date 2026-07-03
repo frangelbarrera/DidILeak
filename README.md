@@ -195,13 +195,15 @@ In the last 2 years, millions of developers have pasted API keys, passwords, tok
 
 ## Contributing
 
+Contributions welcome — and the bar is intentionally low. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full guide, but the short version:
+
 ```bash
 pip install -e ".[dev]"
-pytest  # 68 tests, 82% coverage
+pytest              # 170 tests, 90%+ coverage
 ruff check didileak tests
 ```
 
-PRs welcome. Add new detectors to `didileak/detectors/__init__.py` — each rule is one `Rule(...)` entry with a `pattern`, optional `validator`, optional `context_keywords`, and a `rotation_guide`.
+The most common contribution is **adding a detector** — one `Rule(...)` entry in `didileak/detectors/__init__.py` with a `pattern`, optional `validator`, optional `context_keywords`, and a `rotation_guide`. No CLA, no ceremony. First-time contributors especially welcome.
 
 ## License
 
