@@ -41,7 +41,7 @@
   <text x="70" y="320" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="138" font-weight="800" fill="#faf6f0" letter-spacing="-5">DidILeak</text>
 
   <!-- Tagline -->
-  <text x="74" y="388" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="500" fill="#f0e4d4" letter-spacing="-0.5">What did you paste into ChatGPT?</text>
+  <text x="74" y="388" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="500" fill="#f0e4d4" letter-spacing="-0.5">What did you paste into your AI?</text>
 
   <!-- Subtitle -->
   <text x="74" y="430" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18" font-weight="400" fill="#e0d4c0" opacity="0.85">Scan your LLM chat history for leaked API keys, tokens &amp; PII. Local-first, open-source.</text>

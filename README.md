@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>What did you paste into ChatGPT?</strong><br>
+  <strong>What did you paste into your AI?</strong><br>
   <em>Scan your LLM chat history for leaked API keys, tokens &amp; PII. Local-first, open-source.</em>
 </p>
 
