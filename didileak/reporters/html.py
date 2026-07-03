@@ -529,6 +529,7 @@ _TEMPLATE = """<!DOCTYPE html>
     document.querySelectorAll('thead th').forEach(th => {{
       const k = th.getAttribute('data-k');
       const arrow = th.querySelector('.arrow');
+      if (!arrow) return;  // th without data-k (e.g. Context column) has no arrow
       if (k === sortKey) {{
         th.classList.add('sorted');
         arrow.textContent = sortDir === -1 ? '\\u2193' : '\\u2191';
