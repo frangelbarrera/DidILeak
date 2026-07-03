@@ -1,12 +1,37 @@
-# DidILeak
+<p align="center">
+  <img src="docs/assets/hero.png" alt="DidILeak" width="100%" />
+</p>
 
-> I scanned 2 years of my ChatGPT history. I found **47 API keys**, **12 passwords**, **3 private SSH keys**, and my SSN. All pasted without thinking. — *the hook*
+<p align="center">
+  <strong>What did you paste into ChatGPT?</strong><br>
+  <em>Scan your LLM chat history for leaked API keys, tokens &amp; PII. Local-first, open-source.</em>
+</p>
+
+<p align="center">
+  <a href="https://github.com/frangelbarrera/DidILeak/actions/workflows/ci.yml"><img src="https://github.com/frangelbarrera/DidILeak/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/frangelbarrera/DidILeak"><img src="https://img.shields.io/github/stars/frangelbarrera/DidILeak?style=social" alt="GitHub Stars"></a>
+  <img src="https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue" alt="Python Versions">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
+  <img src="https://img.shields.io/badge/local--first-no%20telemetry-orange" alt="Local-first">
+</p>
+
+---
+
+> I scanned 2 years of my ChatGPT history. I found **47 API keys**, **12 passwords**, **3 private SSH keys**, and my SSN. All pasted without thinking.
 
 `DidILeak` scans your LLM chat history (ChatGPT, Claude, Cursor) for secrets, credentials, and PII you may have pasted accidentally. It runs locally, generates a triage report with rotation instructions, and ships a self-contained HTML dashboard you can screenshot and share.
 
 **OSINT-BIBLE taught you to investigate others. `DidILeak` teaches you to investigate yourself.**
 
 ---
+
+## The dashboard
+
+<p align="center">
+  <img src="docs/assets/dashboard-screenshot.png" alt="DidILeak dashboard showing leaked secrets found in a ChatGPT export" width="100%" />
+</p>
+
+Drag your export in, get a triage table with severity, masked values, context, and one-click rotation guides per finding.
 
 ## Quick start
 
@@ -28,6 +53,24 @@ You'll get three files in `./reports/`:
 | `didileak_report.html` | Self-contained dashboard — filter, sort, drill into each finding. **This is what you screenshot for Twitter/HN.** |
 | `didileak_report.md` | Markdown triage report for your incident channel. |
 | `didileak_report.json` | Machine-readable, with **full secret values** (not just masked) for incident response. |
+
+## How it compares
+
+DidILeak isn't a replacement for [gitleaks](https://github.com/gitleaks/gitleaks) or [trufflehog](https://github.com/trufflesecurity/trufflehog) — those are excellent for scanning repos and CI. DidILeak fills a different gap: scanning **your own chat history** that no other tool touches.
+
+| Feature | gitleaks | trufflehog | **DidILeak** |
+|---|:---:|:---:|:---:|
+| Repo / CI scanning | ✅ | ✅ | — |
+| ChatGPT export parsing | ❌ | ❌ | ✅ |
+| Claude export parsing | ❌ | ❌ | ✅ |
+| Cursor session logs | ❌ | ❌ | ✅ |
+| Rotation guides per secret | ❌ | ❌ | ✅ |
+| Self-contained HTML dashboard | ❌ | ❌ | ✅ |
+| Runs locally, no telemetry | ✅ | ✅ | ✅ |
+| PII detection (SSN, IBAN, cards, email) | partial | partial | ✅ |
+| Built for LLM history, not repos | ❌ | ❌ | ✅ |
+
+Use gitleaks in your CI. Use DidILeak on your `conversations.json`.
 
 ## CLI reference
 

@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="DidILeak — LLM history secret scanner">
+  <!-- Background: solid terracotta -->
+  <rect width="1200" height="630" fill="#d97757"/>
+
+  <!-- Pixel-square decoration cluster, top-right -->
+  <g opacity="0.85">
+    <rect x="990" y="70" width="20" height="20" fill="#a83232"/>
+    <rect x="1015" y="70" width="20" height="20" fill="#faf6f0" opacity="0.4"/>
+    <rect x="1040" y="70" width="20" height="20" fill="#c2410c"/>
+    <rect x="1065" y="70" width="20" height="20" fill="#faf6f0" opacity="0.25"/>
+    <rect x="1090" y="70" width="20" height="20" fill="#b45309"/>
+    <rect x="1115" y="70" width="20" height="20" fill="#3b5e7e"/>
+
+    <rect x="990" y="95" width="20" height="20" fill="#faf6f0" opacity="0.3"/>
+    <rect x="1015" y="95" width="20" height="20" fill="#3b5e7e"/>
+    <rect x="1040" y="95" width="20" height="20" fill="#faf6f0" opacity="0.5"/>
+    <rect x="1065" y="95" width="20" height="20" fill="#6b6660"/>
+    <rect x="1090" y="95" width="20" height="20" fill="#faf6f0" opacity="0.2"/>
+    <rect x="1115" y="95" width="20" height="20" fill="#a83232"/>
+
+    <rect x="990" y="120" width="20" height="20" fill="#c2410c"/>
+    <rect x="1015" y="120" width="20" height="20" fill="#faf6f0" opacity="0.35"/>
+    <rect x="1040" y="120" width="20" height="20" fill="#a83232"/>
+    <rect x="1065" y="120" width="20" height="20" fill="#faf6f0" opacity="0.45"/>
+    <rect x="1090" y="120" width="20" height="20" fill="#3b5e7e"/>
+    <rect x="1115" y="120" width="20" height="20" fill="#6b6660"/>
+  </g>
+
+  <!-- Small logo mark, top-left -->
+  <g transform="translate(70, 75)">
+    <rect x="0" y="0" width="13" height="13" fill="#a83232"/>
+    <rect x="17" y="0" width="13" height="13" fill="#c2410c"/>
+    <rect x="34" y="0" width="13" height="13" fill="#b45309"/>
+    <rect x="0" y="17" width="13" height="13" fill="#3b5e7e"/>
+    <rect x="17" y="17" width="13" height="13" fill="#6b6660"/>
+    <rect x="34" y="17" width="13" height="13" fill="#faf6f0" opacity="0.5"/>
+  </g>
+  <text x="125" y="100" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="17" font-weight="500" fill="#faf6f0" opacity="0.75" letter-spacing="0.5">DIDILEAK</text>
+
+  <!-- Main title -->
+  <text x="70" y="320" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="138" font-weight="800" fill="#faf6f0" letter-spacing="-5">DidILeak</text>
+
+  <!-- Tagline -->
+  <text x="74" y="388" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="500" fill="#f0e4d4" letter-spacing="-0.5">What did you paste into ChatGPT?</text>
+
+  <!-- Subtitle -->
+  <text x="74" y="430" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18" font-weight="400" fill="#e0d4c0" opacity="0.85">Scan your LLM chat history for leaked API keys, tokens &amp; PII. Local-first, open-source.</text>
+
+  <!-- Severity legend -->
+  <g transform="translate(70, 510)" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" font-weight="500" fill="#faf6f0">
+    <rect x="0" y="0" width="11" height="11" fill="#a83232"/>
+    <text x="20" y="10" opacity="0.9">critical</text>
+    <rect x="100" y="0" width="11" height="11" fill="#c2410c"/>
+    <text x="120" y="10" opacity="0.9">high</text>
+    <rect x="180" y="0" width="11" height="11" fill="#b45309"/>
+    <text x="200" y="10" opacity="0.9">medium</text>
+    <rect x="280" y="0" width="11" height="11" fill="#3b5e7e"/>
+    <text x="300" y="10" opacity="0.9">low</text>
+    <rect x="350" y="0" width="11" height="11" fill="#6b6660"/>
+    <text x="370" y="10" opacity="0.9">info</text>
+  </g>
+
+  <!-- URL -->
+  <text x="1130" y="585" text-anchor="end" font-family="JetBrains Mono, SF Mono, ui-monospace, Menlo, monospace" font-size="12" fill="#e0d4c0" opacity="0.6">github.com/frangelbarrera/DidILeak</text>
+</svg>

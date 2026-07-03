@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="DidILeak — What did you paste into ChatGPT?">
+  <!-- Background: solid terracotta, same as dashboard #d97757 -->
+  <rect width="1280" height="640" fill="#d97757"/>
+
+  <!-- Decorative pixel-square pattern, top-right corner. Vintage muted colors. -->
+  <g opacity="0.85">
+    <!-- Row 1 -->
+    <rect x="1080" y="80" width="22" height="22" fill="#a83232"/>
+    <rect x="1108" y="80" width="22" height="22" fill="#faf6f0" opacity="0.4"/>
+    <rect x="1136" y="80" width="22" height="22" fill="#c2410c"/>
+    <rect x="1164" y="80" width="22" height="22" fill="#faf6f0" opacity="0.25"/>
+    <rect x="1192" y="80" width="22" height="22" fill="#b45309"/>
+    <!-- Row 2 -->
+    <rect x="1080" y="108" width="22" height="22" fill="#faf6f0" opacity="0.3"/>
+    <rect x="1108" y="108" width="22" height="22" fill="#3b5e7e"/>
+    <rect x="1136" y="108" width="22" height="22" fill="#faf6f0" opacity="0.5"/>
+    <rect x="1164" y="108" width="22" height="22" fill="#6b6660"/>
+    <rect x="1192" y="108" width="22" height="22" fill="#faf6f0" opacity="0.2"/>
+    <!-- Row 3 -->
+    <rect x="1080" y="136" width="22" height="22" fill="#c2410c"/>
+    <rect x="1108" y="136" width="22" height="22" fill="#faf6f0" opacity="0.35"/>
+    <rect x="1136" y="136" width="22" height="22" fill="#a83232"/>
+    <rect x="1164" y="136" width="22" height="22" fill="#faf6f0" opacity="0.45"/>
+    <rect x="1192" y="136" width="22" height="22" fill="#3b5e7e"/>
+  </g>
+
+  <!-- Top-left small mark: same pixel squares, smaller, as a "logo" element -->
+  <g transform="translate(80, 88)">
+    <rect x="0" y="0" width="14" height="14" fill="#a83232"/>
+    <rect x="18" y="0" width="14" height="14" fill="#c2410c"/>
+    <rect x="36" y="0" width="14" height="14" fill="#b45309"/>
+    <rect x="0" y="18" width="14" height="14" fill="#3b5e7e"/>
+    <rect x="18" y="18" width="14" height="14" fill="#6b6660"/>
+    <rect x="36" y="18" width="14" height="14" fill="#faf6f0" opacity="0.5"/>
+  </g>
+  <text x="135" y="115" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18" font-weight="500" fill="#faf6f0" opacity="0.75" letter-spacing="0.5">DIDILEAK</text>
+
+  <!-- Main title: DidILeak in huge bold -->
+  <text x="80" y="330" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="148" font-weight="800" fill="#faf6f0" letter-spacing="-5">DidILeak</text>
+
+  <!-- Tagline -->
+  <text x="84" y="402" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="36" font-weight="500" fill="#f0e4d4" letter-spacing="-0.5">What did you paste into ChatGPT?</text>
+
+  <!-- Subtitle / one-liner -->
+  <text x="84" y="448" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="19" font-weight="400" fill="#e0d4c0" opacity="0.85">Scan your LLM chat history for leaked API keys, tokens &amp; PII. Local-first, open-source.</text>
+
+  <!-- Bottom row: badges / severity legend -->
+  <g transform="translate(80, 528)" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" font-weight="500" fill="#faf6f0">
+    <!-- critical -->
+    <rect x="0" y="0" width="11" height="11" fill="#a83232"/>
+    <text x="20" y="10" opacity="0.9">critical</text>
+    <!-- high -->
+    <rect x="100" y="0" width="11" height="11" fill="#c2410c"/>
+    <text x="120" y="10" opacity="0.9">high</text>
+    <!-- medium -->
+    <rect x="180" y="0" width="11" height="11" fill="#b45309"/>
+    <text x="200" y="10" opacity="0.9">medium</text>
+    <!-- low -->
+    <rect x="280" y="0" width="11" height="11" fill="#3b5e7e"/>
+    <text x="300" y="10" opacity="0.9">low</text>
+    <!-- info -->
+    <rect x="350" y="0" width="11" height="11" fill="#6b6660"/>
+    <text x="370" y="10" opacity="0.9">info</text>
+  </g>
+
+  <!-- Bottom-right meta -->
+  <text x="1200" y="592" text-anchor="end" font-family="JetBrains Mono, SF Mono, ui-monospace, Menlo, monospace" font-size="13" fill="#e0d4c0" opacity="0.6">github.com/frangelbarrera/DidILeak</text>
+</svg>
