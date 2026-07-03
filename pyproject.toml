@@ -6,16 +6,23 @@ build-backend = "setuptools.build_meta"
 name = "DidILeak"
 version = "0.1.0"
 description = "Scan your LLM chat history for leaked secrets, credentials, and PII"
-readme = "README.md"
+readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [{ name = "Frangel Barrera" }]
-keywords = ["security", "secrets", "llm", "chatgpt", "claude", "pii", "gitleaks", "audit"]
+keywords = [
+    "security", "secrets", "llm", "chatgpt", "claude", "cursor",
+    "pii", "gitleaks", "trufflehog", "audit", "credential-scanning",
+    "devsecops", "privacy", "leak-detection",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
+    "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -23,6 +30,8 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Security",
     "Topic :: Utilities",
+    "Topic :: System :: Installation :: Setup",
+    "Typing :: Typed",
 ]
 dependencies = [
     "rich>=13.7.0",
@@ -35,6 +44,8 @@ dev = [
     "pytest>=8.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.4.0",
+    "build>=1.0",
+    "twine>=4.0",
 ]
 
 [project.scripts]
@@ -43,6 +54,9 @@ didileak = "didileak.cli:main"
 [project.urls]
 Homepage = "https://github.com/frangelbarrera/DidILeak"
 Repository = "https://github.com/frangelbarrera/DidILeak"
+Documentation = "https://github.com/frangelbarrera/DidILeak#readme"
+"Bug Tracker" = "https://github.com/frangelbarrera/DidILeak/issues"
+Changelog = "https://github.com/frangelbarrera/DidILeak/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 include = ["didileak*"]

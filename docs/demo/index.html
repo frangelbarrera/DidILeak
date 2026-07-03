@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DidILeak — Live demo</title>
+<style>
+  :root {
+    --bg: #d97757;
+    --card: #faf6f0;
+    --card-soft: #f3ede3;
+    --border: #e8dfd0;
+    --text: #2a2622;
+    --text-dim: #6b6660;
+    --text-faint: #9a9388;
+    --text-mute: #b8b0a3;
+    --on-bg: #faf6f0;
+    --on-bg-dim: #f0e4d4;
+    --on-bg-faint: #e0d4c0;
+    --ok: #5c7a52;
+    --mono: 'JetBrains Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace;
+    --sans: 'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --shadow-md: 0 1px 3px rgba(42,38,34,0.05), 0 4px 16px rgba(42,38,34,0.06);
+    --shadow-lg: 0 2px 8px rgba(42,38,34,0.08), 0 12px 40px rgba(42,38,34,0.10);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 48px 28px 80px; }
+
+  header.top { margin-bottom: 32px; }
+  .app-name {
+    font-size: 28px; font-weight: 700; letter-spacing: -0.02em;
+    color: var(--on-bg); margin: 0; line-height: 1.1;
+  }
+  .app-tag { font-size: 13px; color: var(--on-bg-faint); margin-top: 4px; }
+  .app-meta { font-family: var(--mono); font-size: 11px; color: var(--on-bg-faint); margin-top: 16px; }
+
+  .card {
+    background: var(--card); border-radius: 14px; padding: 24px;
+    box-shadow: var(--shadow-md); margin-bottom: 20px;
+  }
+  .card h2 {
+    font-size: 17px; font-weight: 700; letter-spacing: -0.01em;
+    color: var(--text); margin: 0 0 4px;
+  }
+  .card p { color: var(--text-dim); font-size: 13px; margin: 0 0 16px; line-height: 1.6; }
+
+  .demo-cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-radius: 10px;
+    background: var(--text); color: var(--card);
+    text-decoration: none; font-size: 14px; font-weight: 600;
+    transition: opacity 0.15s;
+  }
+  .demo-cta:hover { opacity: 0.85; }
+  .demo-cta-secondary {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-radius: 10px;
+    background: var(--card-soft); color: var(--text);
+    border: 1px solid var(--border);
+    text-decoration: none; font-size: 14px; font-weight: 500;
+    margin-left: 8px;
+  }
+
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: 10px;
+    padding: 32px; text-align: center; margin-top: 12px;
+    transition: all 0.15s; cursor: pointer;
+  }
+  .upload-zone:hover, .upload-zone.drag {
+    border-color: var(--text-mute); background: var(--card-soft);
+  }
+  .upload-zone p { margin: 4px 0; color: var(--text-dim); font-size: 13px; }
+  .upload-zone .title { color: var(--text); font-weight: 500; font-size: 15px; }
+  .upload-zone input { display: none; }
+
+  .footer-note {
+    color: var(--on-bg-faint); font-size: 12px; text-align: center;
+    margin-top: 40px; line-height: 1.6;
+  }
+  .footer-note a { color: var(--on-bg-dim); text-decoration: none; }
+  .footer-note a:hover { color: var(--on-bg); }
+  .footer-note code {
+    font-family: var(--mono); font-size: 11px;
+    background: rgba(250,246,240,0.1); padding: 1px 5px; border-radius: 3px;
+  }
+
+  .banner-ok {
+    background: var(--card); border-radius: 10px; padding: 12px 16px;
+    margin-bottom: 16px; font-size: 13px; color: var(--ok);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1 class="app-name">DidILeak</h1>
+    <div class="app-tag">Live demo — no install required</div>
+    <div class="app-meta">
+      This page runs entirely in your browser. Nothing is uploaded to any server.
+    </div>
+  </header>
+
+  <div class="card">
+    <h2>Try the demo</h2>
+    <p>
+      The dashboard below is pre-loaded with a sample ChatGPT export containing 10 known
+      leaked secrets (AWS keys, GitHub PATs, Stripe keys, SSN, credit card, etc).
+      Filter, sort, and click any row to see the rotation guide.
+    </p>
+    <a class="demo-cta" href="report.html">Open the demo dashboard →</a>
+    <a class="demo-cta-secondary" href="https://github.com/frangelbarrera/DidILeak">View on GitHub</a>
+  </div>
+
+  <div class="card">
+    <h2>Or load your own report</h2>
+    <p>
+      If you've already run <code>didileak report</code> on your machine, drop the resulting
+      <code>didileak_report.json</code> here to visualize it with this dashboard — without
+      sending anything to any server.
+    </p>
+    <label class="upload-zone" id="drop">
+      <p class="title">Drop your <code>didileak_report.json</code> here</p>
+      <p>or click to browse</p>
+      <input type="file" id="file" accept=".json">
+    </label>
+    <div id="ok" class="banner-ok hidden">
+      ✓ Loaded <span id="ok-text"></span>. <a href="#" id="view">Open dashboard →</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Want to scan your own export?</h2>
+    <p>
+      Install DidILeak locally — it takes 30 seconds:
+    </p>
+    <pre style="background:var(--card-soft);border-radius:8px;padding:12px;font-family:var(--mono);font-size:12px;overflow-x:auto;color:var(--text-dim);margin:0"><code>pip install didileak
+
+# scan your ChatGPT export
+didileak report ~/Downloads/chatgpt-export/conversations.json --outdir ./reports
+
+# open the dashboard
+open reports/didileak_report.html</code></pre>
+    <p style="margin-top:12px">
+      Or read the <a href="https://github.com/frangelbarrera/DidILeak#quick-start" style="color:var(--text);text-decoration:underline">quick start guide</a>.
+    </p>
+  </div>
+
+  <div class="footer-note">
+    DidILeak runs 100% locally. Your export file never leaves your machine.<br>
+    <a href="https://github.com/frangelbarrera/DidILeak">github.com/frangelbarrera/DidILeak</a>
+  </div>
+</div>
+
+<script>
+  // Handle user-uploaded didileak_report.json — render in new tab using the same
+  // template as the demo, but with the user's data. We achieve this by reading
+  // the demo's index.html, replacing the embedded JSON, and writing to a blob URL.
+  const drop = document.getElementById('drop');
+  const file = document.getElementById('file');
+  const ok = document.getElementById('ok');
+  const okText = document.getElementById('ok-text');
+  const view = document.getElementById('view');
+  let userReportJson = null;
+
+  function handleFile(f) {
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!data.findings || !data.by_severity) {
+          alert('This does not look like a didileak_report.json file.');
+          return;
+        }
+        userReportJson = data;
+        okText.textContent = `${data.total_findings} findings from ${data.provider} export`;
+        ok.classList.remove('hidden');
+      } catch (err) {
+        alert('Could not parse JSON: ' + err.message);
+      }
+    };
+    reader.readAsText(f);
+  }
+
+  file.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('drag'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('drag');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+
+  view.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (!userReportJson) return;
+    // Fetch the demo report.html template, swap the embedded JSON, open as blob
+    const resp = await fetch('report.html');
+    let html = await resp.text();
+    // Replace the JSON between <script id="data" type="application/json"> and </script>
+    const newJson = JSON.stringify(userReportJson);
+    html = html.replace(
+      /(<script id="data" type="application\/json">)([\s\S]*?)(<\/script>)/,
+      `$1${newJson}$3`
+    );
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  });
+</script>
+</body>
+</html>

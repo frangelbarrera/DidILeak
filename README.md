@@ -33,6 +33,8 @@
 
 Drag your export in, get a triage table with severity, masked values, context, and one-click rotation guides per finding.
 
+**Try the live demo (no install required):** <https://frangelbarrera.github.io/DidILeak/>
+
 ## Quick start
 
 ```bash
