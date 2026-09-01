@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from collections.abc import Iterable
 from pathlib import Path
@@ -36,9 +37,14 @@ def scan_path(path: Path, provider: str | None = None) -> ScanResult:
     if not path.exists():
         raise FileNotFoundError(f"export file not found: {path}")
 
-    # Sniff provider if not specified
+    # Sniff provider if not specified (first 64KB is plenty for the
+    # structural keys of every known export format).
     if not provider:
-        head = path.read_bytes()[:8192] if path.is_file() else None
+        if path.is_file():
+            with path.open("rb") as fh:
+                head = fh.read(65536)
+        else:
+            head = None
         provider = detect_provider(str(path), head)
 
     parser_cls = get_parser(provider)
@@ -48,18 +54,60 @@ def scan_path(path: Path, provider: str | None = None) -> ScanResult:
     engine = DetectorEngine()
     findings = engine.scan(messages)
 
+    warnings = parser.warnings
+    if not messages and provider != "generic" and path.stat().st_size > 2:
+        # A dedicated parser that yields nothing is almost always a misrouted
+        # export; surface it instead of silently reporting "clean".
+        warnings = warnings + [
+            f"provider '{provider}' parsed 0 messages; "
+            f"try --provider generic if this is not a {provider} export"
+        ]
+
     return ScanResult(
         source=str(path),
         provider=provider,
         messages_scanned=len(messages),
         conversations_scanned=getattr(parser, "conversation_count", 0),
         findings=findings,
-        parser_warnings=parser.warnings,
+        parser_warnings=warnings,
     )
 
 
 def scan_many(paths: Iterable[Path], provider: str | None = None) -> list[ScanResult]:
     return [scan_path(p, provider) for p in paths]
+
+
+def _write_report(path: Path, content: str) -> Path:
+    """Write a report file with owner-only permissions (0600).
+
+    Reports embed full secret values (JSON ``matched_value``) or contexts, so
+    they must not be group/world readable: ``Path.write_text`` would create
+    them with the process umask (typically 0644). ``os.open`` with 0o600
+    applies the mode at creation, and ``fchmod`` on the descriptor also
+    tightens files left over from earlier runs without a path-based race.
+    ``O_NOFOLLOW`` (where available) refuses to write through a symlink so a
+    report full of secrets cannot be redirected elsewhere.
+    """
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | nofollow, 0o600)
+    os.fchmod(fd, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(content)
+    return path
+
+
+def _combine_results(results: list[ScanResult], paths: list[Path]) -> ScanResult:
+    """Merge per-file results into one aggregate (same shape as `report`)."""
+    findings = [f for r in results for f in r.findings]
+    warnings = [w for r in results for w in r.parser_warnings]
+    return ScanResult(
+        source=f"{len(paths)} files",
+        provider="multi",
+        messages_scanned=sum(r.messages_scanned for r in results),
+        conversations_scanned=sum(r.conversations_scanned for r in results),
+        findings=findings,
+        parser_warnings=warnings,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -134,18 +182,26 @@ def cmd_scan(args: argparse.Namespace) -> int:
         results.append(r)
         _print_summary(r)
 
-        if args.json:
-            out = Path(args.json)
-            out.write_text(render_json(r), encoding="utf-8")
-            print(f"  -> wrote JSON report: {out}")
-        if args.markdown:
-            out = Path(args.markdown)
-            out.write_text(render_markdown(r), encoding="utf-8")
-            print(f"  -> wrote Markdown report: {out}")
-        if args.html:
-            out = Path(args.html)
-            out.write_text(render_html(r), encoding="utf-8")
-            print(f"  -> wrote HTML dashboard: {out}")
+    # Write reports once, after the loop. Writing inside the loop with a fixed
+    # --json/--markdown/--html path would truncate and rewrite the same file
+    # on every iteration, silently keeping only the last input's result.
+    # Single successful input keeps the exact previous single-file output;
+    # multiple inputs are aggregated into one combined report instead.
+    if results and (args.json or args.markdown or args.html):
+        combined = results[0] if len(results) == 1 else _combine_results(results, paths)
+        try:
+            if args.json:
+                out = _write_report(Path(args.json), render_json(combined))
+                print(f"  -> wrote JSON report: {out}")
+            if args.markdown:
+                out = _write_report(Path(args.markdown), render_markdown(combined))
+                print(f"  -> wrote Markdown report: {out}")
+            if args.html:
+                out = _write_report(Path(args.html), render_html(combined))
+                print(f"  -> wrote HTML dashboard: {out}")
+        except OSError as e:
+            print(f"[!] failed to write report: {e}", file=sys.stderr)
+            return 2
 
     return 0 if results else 1
 
@@ -158,7 +214,11 @@ def cmd_report(args: argparse.Namespace) -> int:
         return 2
 
     outdir = Path(args.outdir)
-    outdir.mkdir(parents=True, exist_ok=True)
+    try:
+        outdir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    except OSError as e:
+        print(f"[!] failed to create output directory: {e}", file=sys.stderr)
+        return 2
 
     combined_findings = []
     total_msgs = 0
@@ -187,9 +247,13 @@ def cmd_report(args: argparse.Namespace) -> int:
         parser_warnings=warnings,
     )
 
-    (outdir / "didileak_report.md").write_text(render_markdown(combined), encoding="utf-8")
-    (outdir / "didileak_report.json").write_text(render_json(combined), encoding="utf-8")
-    (outdir / "didileak_report.html").write_text(render_html(combined), encoding="utf-8")
+    try:
+        _write_report(outdir / "didileak_report.md", render_markdown(combined))
+        _write_report(outdir / "didileak_report.json", render_json(combined))
+        _write_report(outdir / "didileak_report.html", render_html(combined))
+    except OSError as e:
+        print(f"[!] failed to write report: {e}", file=sys.stderr)
+        return 2
     _print_summary(combined)
     print(f"reports written to {outdir}/")
     return 0
