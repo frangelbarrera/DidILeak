@@ -9,7 +9,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# Python build artifact at the repo root only — NOT dashboard/lib (source).
+/lib/
 lib64/
 parts/
 sdist/

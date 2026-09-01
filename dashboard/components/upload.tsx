@@ -9,6 +9,9 @@ interface Props {
   loading: boolean;
 }
 
+// Keep in sync with MAX_UPLOAD_BYTES in app/api/scan/route.ts.
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+
 const PROVIDERS = [
   { value: "", label: "Auto-detect" },
   { value: "chatgpt", label: "ChatGPT" },
@@ -21,20 +24,33 @@ export function Upload({ onFile, loading }: Props) {
   const [dragOver, setDragOver] = useState(false);
   const [selected, setSelected] = useState<File | null>(null);
   const [provider, setProvider] = useState<string>("");
+  const [sizeError, setSizeError] = useState<string | null>(null);
+
+  const acceptFile = useCallback((f: File) => {
+    if (f.size > MAX_UPLOAD_BYTES) {
+      setSelected(null);
+      setSizeError(
+        `${(f.size / 1048576).toFixed(1)} MB exceeds the 20 MB limit — split the export before scanning.`
+      );
+      return;
+    }
+    setSizeError(null);
+    setSelected(f);
+  }, []);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       setDragOver(false);
       const f = e.dataTransfer.files?.[0];
-      if (f) setSelected(f);
+      if (f) acceptFile(f);
     },
-    []
+    [acceptFile]
   );
 
   const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f) setSelected(f);
+    if (f) acceptFile(f);
   };
 
   const submit = () => {
@@ -58,9 +74,13 @@ export function Upload({ onFile, loading }: Props) {
             {selected ? selected.name : "Drop your LLM export here"}
           </div>
           <div className="text-xs text-text-faint mt-1">
-            {selected
-              ? `${(selected.size / 1024).toFixed(1)} KB — ready to scan`
-              : "ChatGPT conversations.json · Claude HTML/JSON · Cursor JSON · or a pre-built didileak_report.json"}
+            {sizeError ? (
+              <span className="text-sev-critical">{sizeError}</span>
+            ) : selected ? (
+              `${(selected.size / 1024).toFixed(1)} KB — ready to scan`
+            ) : (
+              "ChatGPT conversations.json · Claude HTML/JSON · Cursor JSON · or a pre-built didileak_report.json"
+            )}
           </div>
         </div>
         <input type="file" className="hidden" onChange={handleSelect} accept=".json,.html,.htm" />

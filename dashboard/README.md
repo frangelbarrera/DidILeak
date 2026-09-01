@@ -48,3 +48,7 @@ letter-spacing for titles. Just the app name appears at the top — no logo mark
 Files are processed locally by the Python CLI on the server. Nothing leaves your
 deployment. For paranoid use, run `didileak scan` in an offline VM and upload
 only the resulting JSON report.
+
+For non-local deployments, set `DIDILEAK_API_TOKEN` to require a bearer token
+on `/api/scan`, and `DIDILEAK_MAX_UPLOAD_BYTES` to change the 20 MB upload cap
+(see `SECURITY.md`).

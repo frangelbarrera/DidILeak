@@ -6,6 +6,7 @@ import { Stats } from "@/components/stats";
 import { FindingsTable } from "@/components/findings-table";
 import { FindingDetail } from "@/components/finding-detail";
 import type { Finding, ScanResult } from "@/lib/types";
+import { sanitizeResult } from "@/lib/sanitize";
 import { AlertTriangle, ShieldCheck, Github, BookOpen } from "lucide-react";
 
 export default function Home() {
@@ -23,7 +24,10 @@ export default function Home() {
       let data: ScanResult;
       if (isPrebuilt) {
         const text = await file.text();
-        data = JSON.parse(text);
+        // Prebuilt CLI reports keep full `matched_value` and raw contexts by
+        // design (incident response). Sanitize before it enters React state or
+        // the JSON download, so the dashboard only ever holds masked values.
+        data = sanitizeResult(JSON.parse(text), file.name) as unknown as ScanResult;
       } else {
         const form = new FormData();
         form.append("file", file);
