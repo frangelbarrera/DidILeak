@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from didileak.models import ScanResult, Severity
-from didileak.reporters.redact import mask_pairs, redact_context
+from didileak.reporters.redact import Redactor
 
 SEVERITY_BADGE = {
     Severity.CRITICAL: "[CRITICAL]",
@@ -24,6 +24,24 @@ def _fmt_ts(ts: float | None) -> str:
         return "unknown"
 
 
+def _md_inline(s: str) -> str:
+    """Neutralize markdown/HTML injection in free text taken from an export.
+
+    Contexts, titles and the source line embed attacker-controlled export
+    text into a document meant to be shared. Links, images and raw HTML get
+    escaped and newlines are flattened so nothing can escape the blockquote
+    line or forge structure in viewers that render raw HTML.
+    """
+    s = s.replace("\n", " ").replace("\r", " ")
+    s = s.replace("[", "\\[").replace("]", "\\]").replace("<", "&lt;")
+    return s.replace("`", "\\`")
+
+
+def _md_code(s: str) -> str:
+    """Make text safe inside a backtick code span (no span breakout)."""
+    return s.replace("`", "'").replace("\n", " ")
+
+
 def render_markdown(result: ScanResult) -> str:
     """Render a human-readable Markdown triage report."""
     out: list[str] = []
@@ -32,7 +50,7 @@ def render_markdown(result: ScanResult) -> str:
 
     out.append("# didileak report\n")
     out.append(f"_Generated: {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}_\n")
-    out.append(f"**Source:** `{result.source}`  ")
+    out.append(f"**Source:** `{_md_code(result.source)}`  ")
     out.append(f"**Provider:** {result.provider}  ")
     out.append(f"**Messages scanned:** {result.messages_scanned}  ")
     out.append(f"**Conversations scanned:** {result.conversations_scanned}\n")
@@ -80,18 +98,21 @@ def render_markdown(result: ScanResult) -> str:
                "--outdir <dir>`); treat the JSON file as a secret.\n")
 
     # Redact globally: a context window can contain the full secret of ANOTHER
-    # finding when matches overlap, and titles may embed secrets too.
-    pairs = mask_pairs(result.findings)
+    # finding when matches overlap, and a truncated fragment of it when the
+    # ±60 window cuts it. The span-aware Redactor handles both; free-text
+    # fields go through its whole-value pass and _md_inline escapes whatever
+    # injection syntax the export text carried.
+    red = Redactor(result.findings)
     for i, f in enumerate(result.sorted_findings(), 1):
-        title = redact_context(f.conversation_title, pairs)
+        title = _md_inline(red.text(f.conversation_title))
         out.append(f"### {i}. {SEVERITY_BADGE[f.severity]} {f.rule_name}")
         out.append(f"- **Rule:** `{f.rule_id}`")
-        out.append(f"- **Matched value:** `{f.masked_value}`")
+        out.append(f"- **Matched value:** `{_md_code(f.masked_value)}`")
         out.append(f"- **Conversation:** {title or '(unknown)'}")
-        out.append(f"- **Role:** {redact_context(f.role, pairs)}")
+        out.append(f"- **Role:** {_md_inline(red.text(f.role))}")
         out.append(f"- **Timestamp:** {_fmt_ts(f.timestamp)}")
         out.append("- **Context:**")
-        out.append(f"  > {redact_context(f.context, pairs)}")
+        out.append(f"  > {_md_inline(red.context(f))}")
         if f.rotation_guide:
             out.append(f"- **Rotation guide:** {f.rotation_guide}")
         out.append("")

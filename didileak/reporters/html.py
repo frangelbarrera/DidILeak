@@ -15,7 +15,7 @@ import html
 import json
 
 from didileak.models import ScanResult, Severity
-from didileak.reporters.redact import mask_pairs, redact_context
+from didileak.reporters.redact import Redactor
 
 # Vintage muted severity colors for the pixel squares.
 # Desaturated, earthy — no neon, no pure RGB primaries.
@@ -62,19 +62,20 @@ def render_html(result: ScanResult) -> str:
     total = data["total_findings"]
     # Strip full secret values from the HTML payload.
     # Redact globally: the context of one finding can contain the full secret
-    # of ANOTHER finding when matches overlap, so every known matched_value is
-    # masked in every context (and in titles, which may embed secrets too).
-    pairs = mask_pairs(data["findings"])
+    # of ANOTHER finding when matches overlap (and a truncated fragment of it
+    # when the ±60 window cuts it), so contexts go through the span-aware
+    # Redactor and free-text fields through its whole-value pass.
+    red = Redactor(data["findings"])
     safe_findings = []
     for f in data["findings"]:
         sf = dict(f)
         sf.pop("matched_value", None)
-        sf["context"] = redact_context(sf.get("context"), pairs)
+        sf["context"] = red.context(sf)
         # Other free-text fields (role, ids) are also attacker-controllable
         # in an export and can embed a secret matched elsewhere.
         for k in ("conversation_title", "role", "conversation_id", "message_id"):
             if sf.get(k):
-                sf[k] = redact_context(sf[k], pairs)
+                sf[k] = red.text(sf[k])
         safe_findings.append(sf)
     data["findings"] = safe_findings
     payload = _script_safe_json(json.dumps(data, ensure_ascii=False, default=str))
