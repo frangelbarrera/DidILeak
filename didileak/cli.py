@@ -12,6 +12,7 @@ from didileak.detectors import DetectorEngine
 from didileak.models import Message, ScanResult, Severity
 from didileak.parsers import detect_provider, get_parser
 from didileak.reporters import render_html, render_json, render_markdown
+from didileak.reporters.redact import Redactor
 from didileak.rotation import GUIDE
 
 try:
@@ -91,7 +92,9 @@ def _write_report(path: Path, content: str) -> Path:
     nofollow = getattr(os, "O_NOFOLLOW", 0)
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | nofollow, 0o600)
     os.fchmod(fd, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+    # errors="replace" is a last-resort belt: reports must be produced even if
+    # some text is not encodable (lone surrogates crash strict UTF-8 writers).
+    with os.fdopen(fd, "w", encoding="utf-8", errors="replace") as fh:
         fh.write(content)
     return path
 
@@ -121,6 +124,9 @@ def _print_summary(result: ScanResult) -> None:
               f"({result.by_severity()})")
         return
     by_sev = result.by_severity()
+    # The preview table shows conversation titles, which can embed secrets
+    # (ChatGPT auto-titles from the first message). Redact before printing.
+    red = Redactor(result.findings)
     con.print()
     con.print(Panel.fit(
         f"[bold]{result.total_findings}[/bold] findings in [bold]{result.messages_scanned}[/bold] messages "
@@ -157,7 +163,7 @@ def _print_summary(result: ScanResult) -> None:
                 f"[{sev_styles[f.severity.value]}]{f.severity.value}[/]",
                 f.rule_name,
                 f.masked_value,
-                (f.conversation_title or "")[:60],
+                red.text(f.conversation_title or "")[:60],
             )
         con.print(ft)
         if result.total_findings > 5:
@@ -173,10 +179,12 @@ def cmd_scan(args: argparse.Namespace) -> int:
         return 2
 
     results: list[ScanResult] = []
+    failures = 0
     for p in paths:
         try:
             r = scan_path(p, args.provider)
         except Exception as e:  # noqa: BLE001
+            failures += 1
             print(f"[!] failed to scan {p}: {e}", file=sys.stderr)
             continue
         results.append(r)
@@ -203,6 +211,11 @@ def cmd_scan(args: argparse.Namespace) -> int:
             print(f"[!] failed to write report: {e}", file=sys.stderr)
             return 2
 
+    if failures:
+        # A partially failed multi-input scan must not exit green: CI would
+        # treat a half-covered audit as a clean pass.
+        print(f"[!] {failures} of {len(paths)} input(s) failed to scan", file=sys.stderr)
+        return 2
     return 0 if results else 1
 
 
@@ -225,10 +238,12 @@ def cmd_report(args: argparse.Namespace) -> int:
     total_convs = 0
     warnings: list[str] = []
     first_provider: str | None = None
+    failures = 0
     for p in paths:
         try:
             r = scan_path(p, args.provider)
         except Exception as e:  # noqa: BLE001
+            failures += 1
             warnings.append(f"failed to scan {p}: {e}")
             continue
         if first_provider is None:
@@ -256,6 +271,9 @@ def cmd_report(args: argparse.Namespace) -> int:
         return 2
     _print_summary(combined)
     print(f"reports written to {outdir}/")
+    if failures:
+        print(f"[!] {failures} of {len(paths)} input(s) failed to scan", file=sys.stderr)
+        return 2
     return 0
 
 
@@ -318,12 +336,13 @@ def cmd_tui(args: argparse.Namespace) -> int:
             table = self.query_one(DataTable)
             table.add_columns("Sev", "Rule", "Value", "Conversation", "When")
             sev_w = {"critical": 5, "high": 4, "medium": 3, "low": 2, "info": 1}
+            red = Redactor(all_findings)
             for f in sorted(all_findings, key=lambda f: -sev_w.get(f.severity.value, 0)):
                 table.add_row(
                     f.severity.value,
                     f.rule_name,
                     f.masked_value,
-                    (f.conversation_title or "")[:40],
+                    red.text(f.conversation_title or "")[:40],
                     str(f.timestamp or ""),
                 )
 

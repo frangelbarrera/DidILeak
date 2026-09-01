@@ -34,6 +34,18 @@ class Message:
     # 1-indexed position inside the conversation, helps triage
     index: int | None = None
 
+    def __post_init__(self) -> None:
+        # JSON exports can carry escapes like \ud800 that decode to lone
+        # surrogates: valid inside a Python str, but every downstream UTF-8
+        # writer (report files, rich console) raises UnicodeEncodeError on
+        # them and kills the whole scan. Map them to U+FFFD at the only
+        # place export text enters the pipeline.
+        self.content = _sanitize_utf8(self.content)
+        self.role = _sanitize_utf8(self.role)
+        self.message_id = _sanitize_utf8(self.message_id)
+        self.conversation_id = _sanitize_utf8(self.conversation_id)
+        self.conversation_title = _sanitize_utf8(self.conversation_title)
+
     def context(self, span_start: int, span_end: int, radius: int = 60) -> str:
         """Return a window of text around [span_start, span_end)."""
         s = max(0, span_start - radius)
@@ -41,6 +53,20 @@ class Message:
         prefix = "..." if s > 0 else ""
         suffix = "..." if e < len(self.content) else ""
         return f"{prefix}{self.content[s:e]}{suffix}"
+
+
+def _sanitize_utf8(value: str | None) -> str | None:
+    """Map lone surrogates (invalid in UTF-8) to U+FFFD, losslessly otherwise."""
+    if not isinstance(value, str):
+        return value
+    try:
+        value.encode("utf-8")
+        return value
+    except UnicodeEncodeError:
+        # encode(replace) would drop a '?'; a UTF-16 round-trip with
+        # surrogatepass turns each lone surrogate into U+FFFD and keeps
+        # everything else (including valid surrogate pairs) intact.
+        return value.encode("utf-16", "surrogatepass").decode("utf-16", "replace")
 
 
 @dataclass
