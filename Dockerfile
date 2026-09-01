@@ -3,43 +3,56 @@
 # Run:    docker run -p 3000:3000 didileak
 #
 # Includes both the Python CLI (so the API route can shell out to it) and the
-# Next.js dashboard.
+# Next.js dashboard. The build fails loudly if the dashboard does not compile;
+# a broken build must never produce a shippable image.
+#
+# Optional runtime configuration:
+#   DIDILEAK_API_TOKEN       bearer token required on /api/scan (unset = open,
+#                            intended for local / single-user self-hosting)
+#   DIDILEAK_MAX_UPLOAD_BYTES max upload size (default 20 MB)
 
 # ---- Stage 1: Python CLI ----------------------------------------------------
 FROM python:3.12-slim AS python-stage
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY didileak ./didileak
-RUN pip install --no-cache-dir -e ".[dev]"
+# Runtime dependencies only: no dev toolchain (pytest/ruff/twine) ends up in
+# the final image. Non-editable install so site-packages is self-contained.
+RUN pip install --no-cache-dir .
 
-# ---- Stage 2: dashboard build -----------------------------------------------
-FROM node:20-slim AS node-build
-WORKDIR /app
-COPY --from=python-stage /app /app
-COPY dashboard ./dashboard
+# ---- Stage 2: dashboard build ------------------------------------------------
+FROM node:22-slim AS node-build
 WORKDIR /app/dashboard
-RUN npm ci || npm install
-RUN npm run build || true  # build may fail on first deploy; allow it for now
+# Lockfile first for layer caching and reproducible installs.
+COPY dashboard/package.json dashboard/package-lock.json ./
+RUN npm ci
+COPY dashboard ./
+# No `|| true`: a failing build must fail the image build.
+RUN npm run build
 
-# ---- Stage 3: runtime -------------------------------------------------------
-FROM node:20-slim
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip \
-    && rm -rf /var/lib/apt/lists/*
+# ---- Stage 3: runtime ---------------------------------------------------------
+# python:3.12-slim keeps the same interpreter the CLI was installed for (its
+# `#!/usr/local/bin/python` shebang and 3.12 site-packages both work as built).
+FROM python:3.12-slim AS runtime
+# Node runtime from the official image (same Debian base); running `node`
+# directly as PID 1 gives clean SIGTERM handling without an npm wrapper.
+COPY --from=node:22-slim /usr/local/bin/node /usr/local/bin/node
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libstdc++6 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 10001 didileak
 
-WORKDIR /app
-# Bring in the installed Python package
-COPY --from=python-stage /usr/local/lib/python3.12/site-packages /usr/lib/python3/dist-packages
-COPY --from=python-stage /usr/local/bin/didileak /usr/local/bin/didileak
-COPY --from=python-stage /app/didileak /app/didileak
-COPY --from=python-stage /app/pyproject.toml /app/pyproject.toml
+COPY --from=python-stage --chown=didileak:didileak \
+    /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=python-stage --chown=didileak:didileak \
+    /usr/local/bin/didileak /usr/local/bin/didileak
+COPY --from=node-build --chown=didileak:didileak /app/dashboard /app/dashboard
 
-# Bring in the built dashboard
-COPY --from=node-build /app/dashboard /app/dashboard
 WORKDIR /app/dashboard
-
 ENV NODE_ENV=production
 ENV PATH="/usr/local/bin:${PATH}"
-
+USER didileak
 EXPOSE 3000
-CMD ["npm", "start"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "node_modules/next/dist/bin/next", "start", "-p", "3000"]

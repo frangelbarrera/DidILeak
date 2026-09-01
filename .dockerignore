@@ -1,0 +1,24 @@
+# Keep the build context small and free of local state / secrets.
+.git
+.gitignore
+.venv
+venv
+env
+.pytest_cache
+.ruff_cache
+.coverage
+**/__pycache__
+**/*.py[cod]
+*.egg-info
+
+# Local dashboard state must not leak into the image (incl. .env files).
+dashboard/node_modules
+dashboard/.next
+dashboard/.env*
+.env
+.env.*
+
+# Not referenced by the Docker build.
+tests
+docs
+.github
