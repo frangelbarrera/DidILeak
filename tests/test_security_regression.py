@@ -22,7 +22,7 @@ from didileak.detectors import DetectorEngine
 from didileak.models import Message, ScanResult
 from didileak.parsers import detect_provider
 from didileak.reporters import render_html, render_json, render_markdown
-from didileak.reporters.redact import mask_pairs, redact_context
+from didileak.reporters.redact import mask_pairs, redact_context, redaction_pairs
 
 # Documented example credentials (public AWS documentation), not real secrets.
 AWS_KEY_ID = "AKIAIOSFODNN7EXAMPLE"
@@ -415,3 +415,298 @@ def test_mask_pairs_skips_empty_and_dedupes():
 
 if __name__ == "__main__":  # pragma: no cover
     sys.exit(pytest.main([__file__]))
+
+
+# --------------------------------------------------------------------------- #
+# Round 2: truncated fragments and bare core values surviving redaction
+# --------------------------------------------------------------------------- #
+
+AWS_SECRET_40 = "wJalrXUtnFEMIK7AAbCdEfGhIjKlMnOpQrStUvWx"
+
+
+def _adjacent_creds_result() -> ScanResult:
+    # The canonical adjacent-credentials layout: access key id on one line,
+    # secret key on the next. Each finding's ±60 context window cuts the
+    # other's secret mid-value at the window edge.
+    content = (
+        f"AWS_ACCESS_KEY_ID={AWS_KEY_ID}\n"
+        f"aws_secret_access_key={AWS_SECRET_40}\n"
+        "end of message"
+    )
+    return _result([Message(role="user", content=content, provider="chatgpt")])
+
+
+def _longest_fragment(secret: str, text: str) -> int:
+    """Longest prefix or suffix of `secret` present in `text` (>= 5 chars)."""
+    for k in range(len(secret), 4, -1):
+        if secret[:k] in text or secret[-k:] in text:
+            return k
+    return 0
+
+
+def test_html_context_redacts_truncated_neighbor():
+    payload = _extract_payload(render_html(_adjacent_creds_result()))
+    for f in payload["findings"]:
+        assert _longest_fragment(AWS_SECRET_40, f["context"]) <= 4, (
+            "truncated secret fragment survived in HTML context"
+        )
+        assert _longest_fragment(AWS_KEY_ID, f["context"]) <= 4
+
+
+def test_markdown_context_redacts_truncated_neighbor():
+    md = render_markdown(_adjacent_creds_result())
+    assert _longest_fragment(AWS_SECRET_40, md) <= 4, (
+        "truncated secret fragment survived in Markdown"
+    )
+    assert _longest_fragment(AWS_KEY_ID, md) <= 4
+
+
+def test_bare_value_repetition_redacted():
+    # Rules whose matched_value includes a prefix (generic-api-key: the
+    # keyword and separator) used to leave bare repetitions of the value
+    # untouched in contexts and titles.
+    secret = "VeryS3cretVal1234567"
+    content = (
+        f"password = {secret} ok; padding padding; people also paste "
+        f"{secret} bare in slack channels all the time"
+    )
+    msgs = [Message(
+        role="user", content=content, provider="chatgpt",
+        conversation_title=f"{secret} bare in title",
+    )]
+    result = _result(msgs)
+    assert result.findings, "fixture must produce at least one finding"
+    for out in (render_html(result), render_markdown(result)):
+        assert secret not in out, "bare secret value survived redaction"
+        assert result.findings[0].masked_value in out
+
+
+def test_bearer_and_uri_core_values_redacted():
+    bearer = "SuperBearerToken123456789"
+    dbpass = "Hunter2Pass9Xyz"
+    content = (
+        f"Authorization: Bearer {bearer} accepted; token {bearer} was reused; "
+        f"db is postgres://admin:{dbpass}@db.internal/app and the password "
+        f"{dbpass} is also written on the whiteboard"
+    )
+    msgs = [Message(role="user", content=content, provider="chatgpt")]
+    result = _result(msgs)
+    assert result.findings, "fixture must produce at least one finding"
+    for out in (render_html(result), render_markdown(result)):
+        assert bearer not in out, "bare bearer token survived redaction"
+        assert dbpass not in out, "bare connection-string password survived redaction"
+
+
+def test_redaction_pairs_add_secret_cores():
+    findings = [{"matched_value": f"password = {AWS_SECRET_40}",
+                 "masked_value": "pass...UvWx"}]
+    pairs = redaction_pairs(findings)
+    raws = [mv for mv, _ in pairs]
+    assert f"password = {AWS_SECRET_40}" in raws
+    assert AWS_SECRET_40 in raws, "core value missing from redaction pairs"
+    # Longest first still holds with the derived pair included.
+    assert raws == sorted(raws, key=len, reverse=True)
+
+
+# --------------------------------------------------------------------------- #
+# Round 2: conversation titles printed raw to stdout / TUI
+# --------------------------------------------------------------------------- #
+
+def test_stdout_summary_redacts_titles(tmp_path: Path, capsys):
+    # ChatGPT auto-generates titles from the first message, so a secret
+    # pasted as the first message ends up in the title - and used to be
+    # printed raw by the rich preview table.
+    title = f"creds {AWS_KEY_ID} inline"
+    data = [{
+        "title": title, "create_time": 1.0, "mapping": {
+            "m1": {"message": {
+                "author": {"role": "user"},
+                "content": {"content_type": "text",
+                            "parts": [f"AWS_ACCESS_KEY_ID={AWS_KEY_ID}"]},
+            }},
+        },
+    }]
+    p = tmp_path / "conversations.json"
+    p.write_text(json.dumps(data), encoding="utf-8")
+    rc = main(["scan", str(p)])
+    captured = capsys.readouterr()
+    assert rc == 0
+    flat = "".join(captured.out.split())
+    assert AWS_KEY_ID not in flat, "secret leaked to stdout via the title"
+    assert "Traceback" not in captured.err
+
+
+# --------------------------------------------------------------------------- #
+# Round 2: exports containing lone surrogates crash the CLI
+# --------------------------------------------------------------------------- #
+
+def test_cli_survives_lone_surrogates(tmp_path: Path, capsys):
+    # A JSON escape like \ud800 decodes to a lone surrogate: valid inside a
+    # Python str, invalid in UTF-8. It used to raise UnicodeEncodeError in
+    # the rich console and abort the scan before any report was written.
+    p = tmp_path / "conversations.json"
+    p.write_text(json.dumps([{
+        "uuid": "c1", "name": "surro \ud800 gate",
+        "created_at": "2026-01-01T00:00:00Z",
+        "chat_messages": [{
+            "uuid": "m1", "sender": "human",
+            "created_at": "2026-01-01T00:00:00Z",
+            "text": "password = LoneSurrogateVal1234 \ud800 end",
+        }],
+    }]), encoding="utf-8")
+    out = tmp_path / "r.json"
+    html = tmp_path / "r.html"
+    rc = main(["scan", str(p), "--json", str(out), "--html", str(html)])
+    captured = capsys.readouterr()
+    assert rc == 0, "surrogate in export must not abort the scan"
+    assert "UnicodeEncodeError" not in captured.err
+    parsed = json.loads(out.read_text(encoding="utf-8"))
+    ctx = parsed["findings"][0]["context"]
+    assert "\N{REPLACEMENT CHARACTER}" in ctx, (
+        "lone surrogate should be mapped to U+FFFD, not crash or vanish"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Round 2: multi-input scans with a failed input exited green
+# --------------------------------------------------------------------------- #
+
+def test_scan_partial_failure_exits_nonzero(tmp_path: Path):
+    good = _chatgpt_file_with(tmp_path, "a.json", AWS_KEY_ID)
+    bad = tmp_path / "unreadable.json"
+    bad.write_text("{}", encoding="utf-8")
+    bad.chmod(0)
+    out = tmp_path / "report.json"
+    try:
+        rc = main(["scan", str(good), str(bad), "--json", str(out)])
+    finally:
+        bad.chmod(0o644)
+    assert rc == 2, "partially failed scan must not exit green"
+    parsed = json.loads(out.read_text(encoding="utf-8"))
+    assert parsed["total_findings"] == 1, "the readable input must still report"
+
+
+def test_report_partial_failure_exits_nonzero(tmp_path: Path):
+    good = _chatgpt_file_with(tmp_path, "a.json", AWS_KEY_ID)
+    bad = tmp_path / "unreadable.json"
+    bad.write_text("{}", encoding="utf-8")
+    bad.chmod(0)
+    outdir = tmp_path / "reports"
+    try:
+        rc = main(["report", str(good), str(bad), "--outdir", str(outdir)])
+    finally:
+        bad.chmod(0o644)
+    assert rc == 2
+    assert (outdir / "didileak_report.json").exists()
+
+
+# --------------------------------------------------------------------------- #
+# Round 2: markdown injection in the shared report
+# --------------------------------------------------------------------------- #
+
+def test_markdown_neutralizes_injection():
+    secret = "PhishySecretVal12345"
+    # Secret at the END so the injection payloads above it fall inside the
+    # ±60 context window of the match.
+    content = (
+        "[phish](https://evil.example/steal) <img src=x onerror=alert(1)>\n"
+        "second line\n"
+        f"password = {secret}"
+    )
+    msgs = [Message(
+        role="user", content=content, provider="chatgpt",
+        conversation_title="title with `backticks` and [phish](https://evil.example)",
+    )]
+    md = render_markdown(_result(msgs))
+    assert secret not in md
+    # Links/images are defused: brackets survive only escaped.
+    assert "[phish](https://evil.example/steal)" not in md
+    assert "\\[phish\\]" in md
+    # Raw HTML tags are entity-escaped.
+    assert "<img src=x" not in md
+    assert "&lt;img" in md
+    # Context newlines are flattened so nothing escapes the blockquote line.
+    assert "\nsecond line" not in md
+    assert "second line" in md
+    # Backticks in titles cannot open a code span that swallows report
+    # structure; the title line stays a single line.
+    assert "title with \\`backticks\\`" in md
+
+
+def test_markdown_source_survives_backticks(tmp_path: Path):
+    # A source path containing a backtick must not break out of the code
+    # span on the Source line.
+    result = _result([Message(
+        role="user", content=f"AWS_ACCESS_KEY_ID={AWS_KEY_ID}", provider="chatgpt",
+    )])
+    result.source = "we`ird path.json"
+    md = render_markdown(result)
+    assert "`we`ird path.json`" not in md
+    assert "we'ird path.json" in md
+
+
+def test_overlapping_spans_redact_cleanly():
+    # The 40-char aws-secret rule can match INSIDE a ghp_ token; their
+    # window cuts overlap and must merge into one mask instead of splicing
+    # each other into raw residue (found via the demo sample regeneration).
+    inner = "1234f1234567890abcdef1234567890abcdef"
+    token = f"ghp_{inner}"
+    content = (
+        "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n"
+        f"GITHUB_TOKEN={token}\n"
+        "the end"
+    )
+    result = _result([Message(role="user", content=content, provider="chatgpt")])
+    rules = {f.rule_id for f in result.findings}
+    assert "github-pat" in rules and "aws-secret-access-key" in rules
+    for out in (render_html(result), render_markdown(result)):
+        assert token not in out
+        assert inner not in out
+        # No long raw run of the token survives anywhere in the report.
+        assert _longest_fragment(inner, out) <= 4
+
+
+def _big_email_result(n: int) -> ScanResult:
+    # Distinct low-severity matches (emails) are the cheapest way to get
+    # many distinct pairs; the allowlist ignores example.com/.org/.net.
+    content = ", ".join(f"user{i}@domain{i}.io" for i in range(n))
+    msgs = [Message(role="user", content=content, provider="chatgpt")]
+    return _result(msgs)
+
+
+def test_report_rendering_stays_subquadratic():
+    # Redaction used to replace every known pair inside every context
+    # field, so an N-finding report paid O(N^2) - a CPU-DoS on the
+    # dashboard. Ratio-based bound: machine-independent (quadratic growth
+    # is a 16x step per doubling, linear ~4x; 12 leaves headroom for noise).
+    import time as _time
+
+    def _render(n: int) -> float:
+        result = _big_email_result(n)
+        t0 = _time.perf_counter()
+        render_html(result)
+        render_markdown(result)
+        return _time.perf_counter() - t0
+
+    t_small = _render(400)
+    t_big = _render(1600)
+    assert t_big / max(t_small, 1e-9) < 12, (
+        f"rendering grew superlinearly: {t_small:.3f}s -> {t_big:.3f}s "
+        "for a 4x finding count"
+    )
+
+
+def test_markdown_neutralizes_role_injection():
+    # The role field is free text from the export (author.role) and used to
+    # reach the Markdown report unescaped, so raw HTML and link forgery
+    # could survive in the shared report.
+    secret = "InlineAttackVal12345"
+    msgs = [Message(
+        role="user\n<img src=x onerror=alert(1)> [phish](https://evil.example)",
+        content=f"password = {secret}", provider="chatgpt",
+    )]
+    md = render_markdown(_result(msgs))
+    assert secret not in md
+    assert "<img src=x" not in md, "raw HTML survived via the role field"
+    assert "[phish](https://evil.example)" not in md, "link forgery survived via the role field"
+    assert "&lt;img" in md
