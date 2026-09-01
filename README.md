@@ -145,6 +145,12 @@ docker build -t didileak .
 docker run -p 3000:3000 didileak
 ```
 
+Optional runtime configuration (see `SECURITY.md` for the full model):
+
+- `DIDILEAK_API_TOKEN` — require `Authorization: Bearer <token>` on `/api/scan`
+  (unset keeps the local/self-hosted usage friction-free).
+- `DIDILEAK_MAX_UPLOAD_BYTES` — max upload size, default 20 MB.
+
 ## How it works
 
 ```
@@ -199,7 +205,7 @@ Contributions welcome — and the bar is intentionally low. See [`CONTRIBUTING.m
 
 ```bash
 pip install -e ".[dev]"
-pytest              # 170 tests, 90%+ coverage
+pytest              # 193 tests, 90%+ coverage
 ruff check didileak tests
 ```
 

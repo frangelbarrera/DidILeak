@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+- HTML reporter: escape the JSON payload embedded in `<script id="data">` so `</script>` sequences cannot break out of the element (stored XSS via malicious export titles).
+- HTML and Markdown reporters: redact every known secret from all context windows and conversation titles, including values matched by neighboring findings.
+- CLI: report files are now written owner-only (0600, never through symlinks), and multi-input `scan` no longer overwrites its own `--json`/`--markdown`/`--html` output.
+- Parser autodetection: export structure is inspected before the filename, so a Claude export named `conversations.json` is no longer scanned as an empty ChatGPT export.
+- Dashboard: `/api/scan` responses are sanitized (no `matched_value`, redacted contexts) with upload, rate and concurrency limits plus an optional bearer token; the dashboard build is fixed (missing `lib/types.ts` and `lib/utils.ts`).
+- Dockerfile: a failing dashboard build now fails the image; the runtime is non-root and includes a health check.
+
 ## [0.1.0] - 2025-07-02
 
 ### Added

@@ -2,8 +2,8 @@
 
 DidILeak is a local-first Python CLI that scans LLM chat-history exports
 (ChatGPT, Claude, Cursor) for accidentally pasted secrets, credentials, and
-PII. The project is **actively maintained** (12 commits as of v0.1.0, last
-commit 2026-07-03) and ships a 170-test suite at 91% coverage on Python
+PII. The project is **actively maintained** (19 commits, last commit
+2026-09-01) and ships a 193-test suite at 91% coverage on Python
 3.9–3.12. This policy covers the Python package (`didileak/`), the Next.js
 dashboard (`dashboard/`), the multi-stage Dockerfile, and the GitHub
 Actions workflows.
@@ -92,65 +92,61 @@ and the researcher should contact the maintainer before proceeding.
 
 ## Known Security Considerations
 
-The following are known limitations of the current release, documented
-here for transparency and tracked for remediation in future patches.
+The following issues were identified in the initial review of the current
+release and have been **remediated** on `main`. They are kept documented for
+transparency and regression testing.
 
-1. **XSS in the HTML reporter** (`reporters/html.py:51`). The JSON payload
-   embedded in `<script id="data" type="application/json">…</script>` is
-   produced by `json.dumps(data, ensure_ascii=False, default=str)`, which
-   does not escape `</script>` sequences. An attacker who can inject a
-   conversation title or message containing `</script><script>…` into a
-   chat export that the user later scans and shares can execute script in
-   the victim's browser. The HTML report is explicitly designed to be
-   shareable (README: "This is what you screenshot for Twitter/HN").
-   **Mitigation:** do not share HTML reports from untrusted exports;
-   open them in a sandboxed browser with JavaScript disabled.
+1. **XSS in the HTML reporter** — FIXED. The JSON payload embedded in
+   `<script id="data">` is now escaped by `_script_safe_json()`
+   (`reporters/html.py`): `<`, `>`, `&`, U+2028 and U+2029 are emitted as
+   backslash-u escapes, which is lossless for JSON and neutralizes
+   `</script>` breakouts. Regression:
+   `tests/test_security_regression.py::test_html_script_breakout`.
 
-2. **Cross-finding context leak in the HTML reporter**
-   (`reporters/html.py:41–49`). The scrubbing loop replaces each
-   finding's own `matched_value` with its masked form inside that
-   finding's `context`, but does not cross-reference other findings.
-   When two findings share an overlapping context window (e.g. an AWS
-   access key and its secret in the same message), each finding's
-   context exposes the other's full secret in plaintext.
-   **Mitigation:** treat HTML reports as containing full secrets until
-   patched; share only the masked summary.
+2. **Cross-finding context leak in the HTML reporter** — FIXED. The
+   redaction loop now masks every known `matched_value` in every context
+   (and in conversation titles, roles and ids), using the shared
+   `reporters/redact.py` helpers. Redaction covers values the detectors
+   matched — unrelated text inside the ±60-char context window is preserved
+   as-is, so treat reports from untrusted exports with care.
+   Regression: `test_html_cross_finding_redaction`.
 
-3. **Markdown reporter leaks full secrets via context**
-   (`reporters/markdown.py:87`). The line
-   `out.append(f"  > {f.context}")` outputs `Finding.context` verbatim
-   with no scrubbing. Since `Message.context()` returns a ±60-char window
-   around the match, the context **always** contains the full
-   `matched_value` in plaintext. This contradicts the README's statement
-   that "Values are masked." **Mitigation:** do not paste Markdown
-   reports into incident channels; use the JSON report under controlled
-   access.
+3. **Markdown reporter leaks full secrets via context** — FIXED. Contexts
+   and titles are redacted with the same global pair set before rendering;
+   the report no longer recommends a nonexistent `--format` flag.
+   Regression: `test_markdown_context_redacted`.
 
-4. **Report files written world-readable** (`cli.py:139, 143, 147, 190,
-   191, 192`). All three report formats are written via
-   `Path.write_text(…, encoding="utf-8")` without an explicit `mode=`,
-   producing files with default permissions (typically `0o644`,
-   world-readable). The JSON report intentionally contains full secret
-   values. On multi-user systems, other accounts can read the reports.
-   **Mitigation:** run `chmod 600 didileak_report.*` after each scan, or
-   set `umask 077` before invoking the CLI.
+4. **Report files written world-readable** — FIXED. The CLI writes all
+   reports via `_write_report()` (`cli.py`): `os.open(..., 0o600)` plus
+   `fchmod` on the descriptor, so reports are owner-only regardless of
+   umask and are never written through symlinks.
+   Regression: `test_scan_reports_owner_only`.
 
-5. **Dashboard `/api/scan` endpoint is unauthenticated**
-   (`dashboard/app/api/scan/route.ts`). The POST endpoint accepts file
-   uploads up to 50 MB (`bodySizeLimit: "50mb"` in `next.config.mjs`),
-   writes them to a temp dir, and shells out to the `didileak` CLI with
-   no authentication, rate limiting, or origin check. If deployed on a
-   public host, any visitor can submit files for scanning, exhausting
-   CPU and disk. **Mitigation:** bind the dashboard to `127.0.0.1` or
-   place it behind an authenticating reverse proxy. The README's privacy
-   note ("No data leaves your deployment") holds only if the deployment
-   is not public.
+5. **Dashboard `/api/scan` endpoint is unauthenticated** — HARDENED. The
+   route now enforces, in-process: an optional bearer token
+   (`DIDILEAK_API_TOKEN` env; set it for any non-local deployment), a
+   per-IP sliding-window rate limit, a concurrency cap, upload size limits
+   (early `Content-Length` check plus authoritative `file.size` check,
+   20 MB default, configurable via `DIDILEAK_MAX_UPLOAD_BYTES`), an
+   extension allowlist, a provider allowlist, and a hard timeout that
+   SIGKILLs the CLI child. The HTTP response is sanitized
+   (`dashboard/lib/sanitize.ts`): `matched_value` is stripped and contexts
+   are redacted before anything reaches the browser, and error responses
+   no longer include stderr or server paths. Note: the
+   `experimental.serverActions.bodySizeLimit` in `next.config.mjs` applies
+   to Server Actions only, never to this route — the route-level checks
+   above are the effective control. The per-IP rate limit trusts the last
+   `X-Forwarded-For` entry (the hop our own reverse proxy appends); request
+   bodies are buffered before the authoritative size check, so a hostile
+   client can still consume memory up to what it sends — for public
+   deployments, still place the dashboard behind an authenticating reverse
+   proxy.
 
-6. **Dockerfile runs as root** (`Dockerfile`). The image has no `USER`
-   directive; the Next.js dashboard and the Python CLI both run as root
-   inside the container. Combined with (5), a vulnerability in the CLI
-   or SQLite could lead to container escape. **Mitigation:** add a
-   non-root user and `USER` directive, or run with `--user nobody`.
+6. **Dockerfile runs as root** — FIXED. The image runs as a dedicated
+   non-root user (`didileak`, uid 10001), installs runtime dependencies
+   only, fails the build if `npm run build` fails (no `|| true`), and
+   includes a HEALTHCHECK. The runtime stage is `python:3.12-slim` so the
+   pip-installed CLI and its shebang are natively compatible.
 
 7. **Dual-use nature.** DidILeak is designed to scan chat exports you
    own (your own ChatGPT/Claude/Cursor history). Running it against

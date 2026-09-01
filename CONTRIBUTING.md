@@ -13,7 +13,7 @@ pip install -e ".[dev]"
 
 # make your change
 
-pytest              # 170 tests, 90%+ coverage required
+pytest              # 193 tests, 90%+ coverage required
 ruff check didileak tests   # must be clean
 
 git checkout -b my-feature
