@@ -147,8 +147,11 @@ docker run -p 3000:3000 didileak
 
 Optional runtime configuration (see `SECURITY.md` for the full model):
 
-- `DIDILEAK_API_TOKEN` — require `Authorization: Bearer <token>` on `/api/scan`
-  (unset keeps the local/self-hosted usage friction-free).
+- `DIDILEAK_API_TOKEN` — require `Authorization: Bearer <token>` on `/api/scan`.
+- `DIDILEAK_ALLOW_ANONYMOUS` — set to `true` to serve `/api/scan` without a
+  token (single-user local use; the default is fail-closed).
+- `DIDILEAK_TRUST_PROXY` — set to `true` behind a reverse proxy that appends
+  the client IP to `X-Forwarded-For` (used for rate limiting).
 - `DIDILEAK_MAX_UPLOAD_BYTES` — max upload size, default 20 MB.
 
 ## How it works

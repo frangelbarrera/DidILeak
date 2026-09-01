@@ -7,8 +7,13 @@
 # a broken build must never produce a shippable image.
 #
 # Optional runtime configuration:
-#   DIDILEAK_API_TOKEN       bearer token required on /api/scan (unset = open,
-#                            intended for local / single-user self-hosting)
+#   DIDILEAK_API_TOKEN        bearer token required on /api/scan. Required
+#                            unless DIDILEAK_ALLOW_ANONYMOUS is set.
+#   DIDILEAK_ALLOW_ANONYMOUS  "true" serves /api/scan without a token
+#                            (local / single-user self-hosting only).
+#   DIDILEAK_TRUST_PROXY      "true" behind a reverse proxy that appends the
+#                            client IP to x-forwarded-for (rate limiting
+#                            then keys on that header).
 #   DIDILEAK_MAX_UPLOAD_BYTES max upload size (default 20 MB)
 
 # ---- Stage 1: Python CLI ----------------------------------------------------

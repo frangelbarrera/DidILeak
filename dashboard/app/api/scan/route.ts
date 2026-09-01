@@ -29,26 +29,49 @@ const SCAN_TIMEOUT_MS = 55_000;
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX_REQUESTS = 10;
 /**
- * Optional bearer token. If DIDILEAK_API_TOKEN is set, every request must
- * present `Authorization: Bearer <token>`; unset keeps local/self-hosted
- * single-user usage working without configuration.
+ * Bearer token. When set (non-empty), every request must present
+ * `Authorization: Bearer <token>`. When unset, the route FAILS CLOSED
+ * unless DIDILEAK_ALLOW_ANONYMOUS="true" explicitly opts into unauthenticated
+ * use (local / single-user self-hosting): an accidentally missing env var
+ * must never silently publish an unauthenticated scan endpoint.
  */
-const API_TOKEN = process.env.DIDILEAK_API_TOKEN;
+const API_TOKEN = process.env.DIDILEAK_API_TOKEN || undefined;
+const ALLOW_ANONYMOUS = process.env.DIDILEAK_ALLOW_ANONYMOUS === "true";
+/**
+ * Only trust client-supplied forwarding headers when the deployment sits
+ * behind a reverse proxy that appends the real client IP. Without this
+ * flag, x-forwarded-for is attacker-controlled and is ignored.
+ */
+const TRUST_PROXY = process.env.DIDILEAK_TRUST_PROXY === "true";
 
 let inFlight = 0;
 const rateHits = new Map<string, number[]>();
 
 function clientKey(req: NextRequest): string {
-  // Trust model: with a reverse proxy in front, the LAST forwarded entry is
-  // the one our proxy appended; anything before it is client-supplied and
-  // therefore spoofable. Without a proxy this key is advisory only.
-  const fwd = req.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",").pop()!.trim();
-  return req.headers.get("x-real-ip") ?? "local";
+  if (TRUST_PROXY) {
+    // The proxy appends the real client IP; the LAST entry is the one it
+    // added, anything before it is client-supplied and spoofable.
+    const fwd = req.headers.get("x-forwarded-for");
+    if (fwd) return fwd.split(",").pop()!.trim();
+    return req.headers.get("x-real-ip") ?? "local";
+  }
+  // Direct exposure: forwarding headers are spoofable and next-server only
+  // stamps the socket IP into x-forwarded-for when the client did not send
+  // one, so a client that does send it hides its real address. All direct
+  // clients share one budget — fail-closed for the rate limiter.
+  return "direct";
 }
 
 function isRateLimited(key: string): boolean {
-  if (rateHits.size > 10_000) rateHits.clear(); // hard cap on tracking state
+  if (rateHits.size > 10_000) {
+    // Evict the oldest quarter of tracked keys instead of dropping ALL
+    // state: a header-spoofing flood must not reset everyone's budget.
+    let drop = 2_500;
+    for (const k of rateHits.keys()) {
+      if (drop-- <= 0) break;
+      rateHits.delete(k);
+    }
+  }
   const now = Date.now();
   const window = (rateHits.get(key) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
   if (window.length === 0) {
@@ -65,9 +88,14 @@ function isRateLimited(key: string): boolean {
 }
 
 function isAuthorized(req: NextRequest): boolean {
-  if (!API_TOKEN) return true;
+  if (!API_TOKEN) {
+    return ALLOW_ANONYMOUS;
+  }
   const header = req.headers.get("authorization") ?? "";
-  const presented = Buffer.from(header.startsWith("Bearer ") ? header.slice(7) : "");
+  // RFC 7235: the auth-scheme is case-insensitive.
+  const presented = Buffer.from(
+    header.slice(0, 7).toLowerCase() === "bearer " ? header.slice(7) : ""
+  );
   const expected = Buffer.from(API_TOKEN);
   // Length check first: timingSafeEqual throws on length mismatch.
   return (
@@ -99,10 +127,15 @@ class ScanError extends Error {
  * The Python CLI must be on PATH: `pip install -e .` from the repo root.
  */
 export async function POST(req: NextRequest) {
+  const key = clientKey(req);
   if (!isAuthorized(req)) {
+    // Failed attempts consume the caller's budget, so online token
+    // brute-force is throttled by the same limiter.
+    if (isRateLimited(key)) {
+      return NextResponse.json({ error: "too many requests" }, { status: 429 });
+    }
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const key = clientKey(req);
   if (isRateLimited(key)) {
     return NextResponse.json(
       { error: "too many requests; wait a minute and retry" },
@@ -112,9 +145,18 @@ export async function POST(req: NextRequest) {
   if (inFlight >= MAX_CONCURRENT_SCANS) {
     return NextResponse.json({ error: "server busy; retry shortly" }, { status: 429 });
   }
-  // Cheap early rejection before the body is buffered anywhere.
-  const declared = Number(req.headers.get("content-length") ?? 0);
-  if (declared > MAX_UPLOAD_BYTES + 64 * 1024) {
+  // Reject before any buffering happens. A request without a valid
+  // Content-Length (e.g. chunked transfer-encoding) would otherwise be
+  // fully materialized by formData() before the authoritative file.size
+  // check — the early limit above only helps when the header is honest.
+  const declaredRaw = req.headers.get("content-length");
+  if (declaredRaw === null || !/^\d+$/.test(declaredRaw)) {
+    return NextResponse.json(
+      { error: "content-length header required" },
+      { status: 411 }
+    );
+  }
+  if (Number(declaredRaw) > MAX_UPLOAD_BYTES + 64 * 1024) {
     return NextResponse.json({ error: "file too large" }, { status: 413 });
   }
 
@@ -128,7 +170,17 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    const form = await req.formData();
+    let form: FormData;
+    try {
+      // A malformed multipart body throws here; that is a client error,
+      // not a 500.
+      form = await req.formData();
+    } catch {
+      return NextResponse.json(
+        { error: "malformed multipart/form-data body" },
+        { status: 400 }
+      );
+    }
     const file = form.get("file");
     const provider = (form.get("provider") as string | null) || undefined;
 
