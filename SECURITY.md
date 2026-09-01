@@ -56,7 +56,7 @@ reporters, CLI, models, rotation guides); the Next.js dashboard under
 
 **Out of scope:** vulnerabilities in third-party LLM providers (ChatGPT,
 Claude, Cursor) or their export formats — report those to the respective
-vendor. Findings in dependencies (rich, jinja2, next, react, etc.) —
+vendor. Findings in dependencies (rich, next, react, etc.) —
 report upstream; DidILeak will bump the affected dep on confirmation.
 Crashes from malformed exports that are not valid examples of any
 supported provider's format. Self-DoS from running the CLI on a
@@ -111,10 +111,29 @@ transparency and regression testing.
    as-is, so treat reports from untrusted exports with care.
    Regression: `test_html_cross_finding_redaction`.
 
+   Follow-up (window-edge fragments): the ±60-char window can cut a
+   neighbouring secret mid-value, and whole-value replacement left the
+   visible fragment raw — combined with the 4+4 mask of the finding's own
+   value, the full secret was reconstructible. Contexts are now redacted by
+   span surgery (`Redactor.context()` in `reporters/redact.py`): the window
+   is reconstructed from `span_start` and every same-message finding slice
+   visible in it — full or truncated — is replaced by its mask, with no
+   string guessing. The same "core" of prefixed matches (`password = X`,
+   `Bearer X`, `scheme://user:pass@host`) is added as its own pair so bare
+   repetitions of a value are masked too. Regressions:
+   `test_html_context_redacts_truncated_neighbor`,
+   `test_bare_value_repetition_redacted`,
+   `test_bearer_and_uri_core_values_redacted`.
+
 3. **Markdown reporter leaks full secrets via context** — FIXED. Contexts
    and titles are redacted with the same global pair set before rendering;
    the report no longer recommends a nonexistent `--format` flag.
-   Regression: `test_markdown_context_redacted`.
+   Regression: `test_markdown_context_redacted`. Contexts also go through
+   the span-aware redactor described in item 2, and free text from the
+   export (contexts, titles, source path) is escaped for Markdown/HTML
+   injection (`_md_inline` / `_md_code` in `reporters/markdown.py`): links,
+   images, raw tags and newlines cannot forge structure in the shared
+   report. Regression: `test_markdown_neutralizes_injection`.
 
 4. **Report files written world-readable** — FIXED. The CLI writes all
    reports via `_write_report()` (`cli.py`): `os.open(..., 0o600)` plus
@@ -123,24 +142,36 @@ transparency and regression testing.
    Regression: `test_scan_reports_owner_only`.
 
 5. **Dashboard `/api/scan` endpoint is unauthenticated** — HARDENED. The
-   route now enforces, in-process: an optional bearer token
-   (`DIDILEAK_API_TOKEN` env; set it for any non-local deployment), a
-   per-IP sliding-window rate limit, a concurrency cap, upload size limits
-   (early `Content-Length` check plus authoritative `file.size` check,
-   20 MB default, configurable via `DIDILEAK_MAX_UPLOAD_BYTES`), an
+   route enforces, in-process: a bearer token (`DIDILEAK_API_TOKEN`), a
+   per-client rate limit, a concurrency cap, upload size limits, an
    extension allowlist, a provider allowlist, and a hard timeout that
-   SIGKILLs the CLI child. The HTTP response is sanitized
-   (`dashboard/lib/sanitize.ts`): `matched_value` is stripped and contexts
-   are redacted before anything reaches the browser, and error responses
-   no longer include stderr or server paths. Note: the
-   `experimental.serverActions.bodySizeLimit` in `next.config.mjs` applies
-   to Server Actions only, never to this route — the route-level checks
-   above are the effective control. The per-IP rate limit trusts the last
-   `X-Forwarded-For` entry (the hop our own reverse proxy appends); request
-   bodies are buffered before the authoritative size check, so a hostile
-   client can still consume memory up to what it sends — for public
-   deployments, still place the dashboard behind an authenticating reverse
-   proxy.
+   SIGKILLs the CLI child. Authentication is **fail-closed**: without
+   `DIDILEAK_API_TOKEN` the route answers 401 unless
+   `DIDILEAK_ALLOW_ANONYMOUS="true"` explicitly opts into unauthenticated
+   use (single-user local self-hosting). Failed auth attempts consume the
+   caller's rate budget. Requests without a numeric `Content-Length`
+   (e.g. chunked uploads) are rejected with 411 before any buffering, and
+   the declared length is capped — the multipart body is never materialized
+   for oversized requests. Rate limiting keys on the client IP only when
+   `DIDILEAK_TRUST_PROXY="true"` (reverse proxy appending to
+   `X-Forwarded-For`); in direct exposure every client shares one budget,
+   and a key-flood evicts a quarter of the tracked keys instead of resetting
+   everyone. The HTTP response is sanitized (`dashboard/lib/sanitize.ts`):
+   `matched_value` is stripped and contexts are redacted — with the same
+   span surgery and core-value pairs as the Python reporters — before
+   anything reaches the browser, and error responses do not include stderr
+   or server paths. For public deployments, still place the dashboard behind
+   an authenticating reverse proxy.
+
+   `next.config.mjs` also sends `X-Content-Type-Options: nosniff`,
+   `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer` on every
+   response, and `Cache-Control: no-store` on `/api/*`.
+
+   Residual: response sanitization is synchronous CPU work proportional to
+   the export's text and distinct-secret count. A rate-limited adversarial
+   upload with thousands of secrets of distinct lengths can still keep a
+   core busy for seconds per request; public deployments should keep the
+   reverse proxy (with its own request body limits) in front.
 
 6. **Dockerfile runs as root** — FIXED. The image runs as a dedicated
    non-root user (`didileak`, uid 10001), installs runtime dependencies
@@ -148,7 +179,27 @@ transparency and regression testing.
    includes a HEALTHCHECK. The runtime stage is `python:3.12-slim` so the
    pip-installed CLI and its shebang are natively compatible.
 
-7. **Dual-use nature.** DidILeak is designed to scan chat exports you
+7. **Lone surrogates crash the CLI** — FIXED. JSON escapes like `\ud800`
+   decode to lone surrogates: valid in a Python `str`, unencodable in
+   UTF-8. They used to raise `UnicodeEncodeError` inside the rich console
+   and abort the scan before any report was written. Export text is
+   sanitized to U+FFFD where it enters the pipeline
+   (`Message.__post_init__`, `models.py`) and report files are written with
+   `errors="replace"` as a belt. Regression: `test_cli_survives_lone_surrogates`.
+
+8. **Conversation titles printed raw to stdout/TUI** — FIXED. ChatGPT
+   auto-generates titles from the first message, so a secret pasted as the
+   first message ends up in the title — and the rich preview table (and the
+   TUI) used to print it raw. Titles are now redacted with the global pair
+   set before printing. Regression: `test_stdout_summary_redacts_titles`.
+
+9. **Multi-input scans exit green on partial failure** — FIXED. When some
+   inputs failed to parse, `scan`/`report` still exited 0, so CI would treat
+   a half-covered audit as a clean pass. A partial failure now exits 2
+   while still writing reports for the inputs that could be read.
+   Regression: `test_scan_partial_failure_exits_nonzero`.
+
+10. **Dual-use nature.** DidILeak is designed to scan chat exports you
    own (your own ChatGPT/Claude/Cursor history). Running it against
    someone else's exports without consent may constitute unauthorized
    access under the legal framework cited above. The maintainer

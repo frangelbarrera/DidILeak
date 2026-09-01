@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parser autodetection: export structure is inspected before the filename, so a Claude export named `conversations.json` is no longer scanned as an empty ChatGPT export.
 - Dashboard: `/api/scan` responses are sanitized (no `matched_value`, redacted contexts) with upload, rate and concurrency limits plus an optional bearer token; the dashboard build is fixed (missing `lib/types.ts` and `lib/utils.ts`).
 - Dockerfile: a failing dashboard build now fails the image; the runtime is non-root and includes a health check.
+- Redaction: contexts are now redacted by span surgery, so a secret cut mid-value by the ±60 context window edge no longer survives as a raw fragment; the secret core of prefixed matches (`password = X`, `Bearer X`, connection strings) is redacted as its own value, so bare repetitions are masked too. The dashboard sanitizer applies the same two passes.
+- Redaction now groups findings by message and walks the window with a binary search instead of scanning all findings per context.
+- CLI: exports containing lone surrogates (`\ud800` escapes) no longer crash the scan; they are mapped to U+FFFD where export text enters the pipeline.
+- CLI: conversation titles are redacted before being printed to stdout or the TUI.
+- CLI: `scan`/`report` now exit 2 when some inputs fail instead of exiting green on a half-covered audit.
+- Markdown reporter: free text from the export (contexts, titles, source path) is escaped so links, images, raw HTML and newlines cannot forge structure in the shared report.
+- Dashboard: `/api/scan` is fail-closed without `DIDILEAK_API_TOKEN` (opt back in with `DIDILEAK_ALLOW_ANONYMOUS=true`); requests without `Content-Length` are rejected before buffering; failed auth consumes the rate budget; rate limiting keys on `X-Forwarded-For` only when `DIDILEAK_TRUST_PROXY=true`. Baseline `nosniff`/`DENY`/`no-referrer` headers and `no-store` on `/api/*`.
+- Build: drop the unused jinja2 runtime dependency.
 
 ## [0.1.0] - 2025-07-02
 
