@@ -15,6 +15,7 @@ import html
 import json
 
 from didileak.models import ScanResult, Severity
+from didileak.reporters.redact import mask_pairs, redact_context
 
 # Vintage muted severity colors for the pixel squares.
 # Desaturated, earthy — no neon, no pure RGB primaries.
@@ -33,22 +34,50 @@ def _esc(s) -> str:
     return html.escape(str(s))
 
 
+def _script_safe_json(payload: str) -> str:
+    """Make a JSON string safe to embed inside an HTML ``<script>`` element.
+
+    ``json.dumps`` output is valid JSON but NOT safe to paste raw into a
+    ``<script>`` context: the literal sequence ``</script>`` inside a JSON
+    string terminates the element early, which allows script injection
+    (stored XSS) when a malicious export ends up in a field such as the
+    conversation title. Escaping ``<``, ``>``, ``&`` as backslash-u escapes is
+    lossless for JSON (those characters only ever occur inside JSON strings)
+    and neutralizes the breakout. U+2028/U+2029 are escaped too, for
+    JS-string-literal safety.
+    """
+    return (
+        payload
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
+
+
 def render_html(result: ScanResult) -> str:
     data = result.to_dict()
     by_sev = data["by_severity"]
     total = data["total_findings"]
     # Strip full secret values from the HTML payload.
+    # Redact globally: the context of one finding can contain the full secret
+    # of ANOTHER finding when matches overlap, so every known matched_value is
+    # masked in every context (and in titles, which may embed secrets too).
+    pairs = mask_pairs(data["findings"])
     safe_findings = []
     for f in data["findings"]:
         sf = dict(f)
         sf.pop("matched_value", None)
-        ctx = sf.get("context") or ""
-        mv = f.get("matched_value")
-        if mv and mv in ctx:
-            sf["context"] = ctx.replace(mv, f.get("masked_value", "***"))
+        sf["context"] = redact_context(sf.get("context"), pairs)
+        # Other free-text fields (role, ids) are also attacker-controllable
+        # in an export and can embed a secret matched elsewhere.
+        for k in ("conversation_title", "role", "conversation_id", "message_id"):
+            if sf.get(k):
+                sf[k] = redact_context(sf[k], pairs)
         safe_findings.append(sf)
     data["findings"] = safe_findings
-    payload = json.dumps(data, ensure_ascii=False, default=str)
+    payload = _script_safe_json(json.dumps(data, ensure_ascii=False, default=str))
 
     sev_badges = "".join(
         f'<span class="sev-pill">'

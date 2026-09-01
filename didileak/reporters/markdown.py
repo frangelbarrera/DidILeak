@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from didileak.models import ScanResult, Severity
+from didileak.reporters.redact import mask_pairs, redact_context
 
 SEVERITY_BADGE = {
     Severity.CRITICAL: "[CRITICAL]",
@@ -74,17 +75,23 @@ def render_markdown(result: ScanResult) -> str:
 
     # Findings
     out.append("## Findings\n")
-    out.append("> Values are masked. Use `didileak report --format json` to recover full values for incident response.\n")
+    out.append("> Values are masked. Keep full values for incident response with "
+               "`didileak scan <export> --json report.json` (or `didileak report <export> "
+               "--outdir <dir>`); treat the JSON file as a secret.\n")
 
+    # Redact globally: a context window can contain the full secret of ANOTHER
+    # finding when matches overlap, and titles may embed secrets too.
+    pairs = mask_pairs(result.findings)
     for i, f in enumerate(result.sorted_findings(), 1):
+        title = redact_context(f.conversation_title, pairs)
         out.append(f"### {i}. {SEVERITY_BADGE[f.severity]} {f.rule_name}")
         out.append(f"- **Rule:** `{f.rule_id}`")
         out.append(f"- **Matched value:** `{f.masked_value}`")
-        out.append(f"- **Conversation:** {f.conversation_title or '(unknown)'}")
-        out.append(f"- **Role:** {f.role}")
+        out.append(f"- **Conversation:** {title or '(unknown)'}")
+        out.append(f"- **Role:** {redact_context(f.role, pairs)}")
         out.append(f"- **Timestamp:** {_fmt_ts(f.timestamp)}")
         out.append("- **Context:**")
-        out.append(f"  > {f.context}")
+        out.append(f"  > {redact_context(f.context, pairs)}")
         if f.rotation_guide:
             out.append(f"- **Rotation guide:** {f.rotation_guide}")
         out.append("")
