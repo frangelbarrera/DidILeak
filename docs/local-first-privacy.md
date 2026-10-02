@@ -1,5 +1,13 @@
-# Local-first privacy model
+**Maintainer:** Frangel Raúl Crespo Barrera
+**Last verified:** 2026-10-02
+**Scope:** local file access, report/dashboard output, telemetry, retention, and cleanup.
 
-The intended privacy boundary is local analysis: document which paths are read, which data is retained, what is never transmitted, and which permissions are required. Logs and dashboard output must not expose detected secrets or personal data.
+| Field | Current record |
+|---|---|
+| Status | Local-first intent documented; claims about egress must follow implementation evidence. |
+| Evidence | `didileak/`, `tests/test_detectors.py`, `tests/test_security_regression.py`, `docs/`, `pyproject.toml`, `.github/workflows/ci.yml`. |
+| Verification | `pytest -q`; inspect file access and output paths when changing detectors or reporters. |
+| Owner | Repository owner. |
+| Limitations | This page does not prove absence of telemetry or leakage in every future feature. |
 
-Use synthetic credentials and PII in tests. Define cleanup and retention for reports and caches. Claims about telemetry or data egress should remain limited to behavior verified by the implementation and CI.
+Use synthetic credentials and PII in tests. Do not expose detected secrets in logs, dashboards, fixtures, or reports. Define retention and cleanup for caches and generated artifacts.
