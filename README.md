@@ -223,3 +223,7 @@ MIT — see [LICENSE](LICENSE).
 - [gitleaks](https://github.com/gitleaks/gitleaks) — the canonical secret-pattern reference
 - [trufflehog](https://github.com/trufflesecurity/trufflehog) — entropy + verifier approach inspiration
 - [OSINT-BIBLE](https://github.com/frangelbarrera/OSINT-BIBLE) — the spiritual predecessor
+
+## Local-first privacy
+
+See [docs/local-first-privacy.md](docs/local-first-privacy.md).
