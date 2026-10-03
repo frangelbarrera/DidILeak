@@ -1,0 +1,10 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Synthetic credentials used exclusively by parser and detector tests"
+paths = [
+  '''^tests/''',
+  '''^examples/chatgpt_export_sample\.json$''',
+  '''^docs/demo/report\.html$''',
+]

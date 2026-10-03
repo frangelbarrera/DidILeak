@@ -10,4 +10,4 @@
 | Owner | Repository owner. |
 | Limitations | This page does not prove absence of telemetry or leakage in every future feature. |
 
-Use synthetic credentials and PII in tests. Do not expose detected secrets in logs, dashboards, fixtures, or reports. Define retention and cleanup for caches and generated artifacts.
+Use synthetic credentials and PII in tests. The repository's secret scanner allowlist is limited to `tests/`, `examples/chatgpt_export_sample.json`, and the generated `docs/demo/report.html`, where masked values are required to verify detection and redaction behavior. Do not add real credentials to those paths or expose detected secrets in logs, dashboards, or reports. Define retention and cleanup for caches and generated artifacts.
