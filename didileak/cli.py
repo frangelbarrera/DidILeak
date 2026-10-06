@@ -25,6 +25,12 @@ except ImportError:  # pragma: no cover
     _HAS_RICH = False
 
 
+# Parsers intentionally favor compatibility over streaming because provider
+# exports are small in normal use. Keep a hard ceiling so a local invocation
+# cannot accidentally materialize an unbounded input in memory.
+MAX_INPUT_BYTES = 100 * 1024 * 1024
+
+
 def _console() -> Console | None:
     return Console() if _HAS_RICH else None
 
@@ -37,6 +43,10 @@ def scan_path(path: Path, provider: str | None = None) -> ScanResult:
     """Run the full pipeline against a single export file."""
     if not path.exists():
         raise FileNotFoundError(f"export file not found: {path}")
+    if path.is_file() and path.stat().st_size > MAX_INPUT_BYTES:
+        raise ValueError(
+            f"export exceeds the {MAX_INPUT_BYTES // (1024 * 1024)} MB input limit"
+        )
 
     # Sniff provider if not specified (first 64KB is plenty for the
     # structural keys of every known export format).

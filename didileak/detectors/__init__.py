@@ -102,8 +102,13 @@ RULES: list[Rule] = [
         name="AWS Secret Access Key (with context)",
         category="secret",
         severity=Severity.CRITICAL,
-        # Loose pattern; only fires when AWS context is nearby
-        pattern=re.compile(r"(?<![A-Za-z0-9/+])[A-Za-z0-9/+]{40}(?![A-Za-z0-9/+])"),
+        # Loose pattern; only fires when AWS context is nearby. Exclude the
+        # bare bodies of prefixed GitHub tokens so a nearby AWS assignment does
+        # not turn one GitHub finding into a misleading AWS finding.
+        pattern=re.compile(
+            r"(?<![A-Za-z0-9/+])(?<!ghp_)(?<!gho_)(?<!ghs_)(?<!ghu_)(?<!ghr_)"
+            r"[A-Za-z0-9/+]{40}(?![A-Za-z0-9/+])"
+        ),
         context_keywords=["aws_secret_access_key", "aws secret", "AKIA", "aws_session_token"],
         context_radius=80,
         rotation_guide=(
@@ -173,6 +178,21 @@ RULES: list[Rule] = [
         rotation_guide=(
             "OAuth access tokens expire (~1h) but revoke to be safe: "
             "https://myaccount.google.com/permissions. Re-issue refresh tokens."
+        ),
+    ),
+
+    # ---- OpenAI ----------------------------------------------------------- #
+    Rule(
+        rule_id="openai-api-key",
+        name="OpenAI API Key",
+        category="secret",
+        severity=Severity.CRITICAL,
+        # Current project/admin keys use sk-proj- or sk-admin- prefixes.
+        pattern=re.compile(r"sk-(?:proj|admin)-[A-Za-z0-9_-]{20,}"),
+        allowlist=["example", "placeholder", "your_", "xxxx", "changeme"],
+        rotation_guide=(
+            "Revoke the key in the OpenAI platform, create a replacement with "
+            "the minimum required permissions, and review usage logs for abuse."
         ),
     ),
 

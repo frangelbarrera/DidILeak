@@ -106,6 +106,7 @@ Patterns inspired by [gitleaks](https://github.com/gitleaks/gitleaks) v8 and [tr
 | Cloud | AWS Secret Access Key (context-checked) | critical |
 | Cloud | Google API Key (`AIza…`) | high |
 | Cloud | Google OAuth token (`ya29.…`) | high |
+| AI | OpenAI project/admin API key (`sk-proj-…`, `sk-admin-…`) | critical |
 | VCS | GitHub PAT (`ghp_…`) | critical |
 | VCS | GitHub OAuth (`gho_…`) | critical |
 | VCS | GitHub App / User-to-Server (`ghu_`, `ghs_`, `ghr_`) | critical |
@@ -152,7 +153,7 @@ Optional runtime configuration (see `SECURITY.md` for the full model):
   token (single-user local use; the default is fail-closed).
 - `DIDILEAK_TRUST_PROXY` — set to `true` behind a reverse proxy that appends
   the client IP to `X-Forwarded-For` (used for rate limiting).
-- `DIDILEAK_MAX_UPLOAD_BYTES` — max upload size, default 20 MB.
+- `DIDILEAK_MAX_UPLOAD_BYTES` — max upload size, default 20 MB and capped at 100 MB.
 
 ## How it works
 

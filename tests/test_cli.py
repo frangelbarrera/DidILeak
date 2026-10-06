@@ -45,6 +45,16 @@ def test_scan_path_missing_file(tmp_path):
         scan_path(tmp_path / "does-not-exist.json")
 
 
+def test_scan_path_rejects_oversized_file(tmp_path, monkeypatch):
+    import didileak.cli as cli
+
+    p = tmp_path / "oversized.json"
+    p.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(cli, "MAX_INPUT_BYTES", 1)
+    with pytest.raises(ValueError, match="input limit"):
+        scan_path(p)
+
+
 def test_cli_scan_writes_html(chatgpt_export, tmp_path):
     out = tmp_path / "report.html"
     rc = main(["scan", str(chatgpt_export), "--html", str(out)])

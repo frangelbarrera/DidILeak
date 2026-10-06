@@ -65,6 +65,26 @@ def test_google_oauth_detected():
     assert any(h.rule_id == "google-oauth" for h in hits)
 
 
+def test_openai_project_key_detected():
+    hits = _scan("OPENAI_API_KEY=sk-proj-abcdef1234567890abcdef1234567890abcdef")
+    assert any(h.rule_id == "openai-api-key" for h in hits)
+
+
+def test_github_token_body_is_not_misclassified_as_aws_secret():
+    text = (
+        "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE "
+        "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY "
+        "GITHUB_TOKEN=ghp_1234567890abcdefghijklmnopqrstuvwxyz1234"
+    )
+    hits = _scan(text)
+    assert any(h.rule_id == "github-pat" for h in hits)
+    assert not any(
+        h.rule_id == "aws-secret-access-key"
+        and h.matched_value == "1234567890abcdefghijklmnopqrstuvwxyz1234"
+        for h in hits
+    )
+
+
 def test_slack_token_detected():
     hits = _scan("slack xoxb-1234567890-abcdefghij")
     assert any(h.rule_id == "slack-token" for h in hits)

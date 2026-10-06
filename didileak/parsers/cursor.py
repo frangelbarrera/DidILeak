@@ -105,7 +105,7 @@ class CursorParser(Parser):
                 self.warnings.append(f"vscdb schema not Cursor-like: {e}")
                 return
             idx = 0
-            for key, value in cur.fetchall():
+            for key, value in cur:
                 text = value.decode("utf-8", errors="replace") if isinstance(value, bytes) else str(value)
                 # Try to parse as JSON; otherwise treat as raw text
                 try:
