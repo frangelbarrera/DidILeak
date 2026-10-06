@@ -2,8 +2,8 @@
 
 DidILeak is a local-first Python CLI that scans LLM chat-history exports
 (ChatGPT, Claude, Cursor) for accidentally pasted secrets, credentials, and
-PII. The project is **actively maintained** (19 commits, last commit
-2026-09-01) and ships a 193-test suite at 91% coverage on Python
+PII. The project is **actively maintained** and ships a Python test suite
+with coverage enforced at 90% or higher across Python
 3.9–3.12. This policy covers the Python package (`didileak/`), the Next.js
 dashboard (`dashboard/`), the multi-stage Dockerfile, and the GitHub
 Actions workflows.
@@ -166,6 +166,10 @@ transparency and regression testing.
    `next.config.mjs` also sends `X-Content-Type-Options: nosniff`,
    `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer` on every
    response, and `Cache-Control: no-store` on `/api/*`.
+
+   The CLI rejects exports larger than 100 MB. The dashboard's configurable
+   upload limit is also capped at 100 MB, so deployment configuration cannot
+   remove the absolute resource ceiling.
 
    Residual: response sanitization is synchronous CPU work proportional to
    the export's text and distinct-secret count. A rate-limited adversarial

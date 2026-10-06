@@ -54,4 +54,5 @@ fail-closed without it). For single-user local self-hosting you can opt back
 into anonymous access with `DIDILEAK_ALLOW_ANONYMOUS=true`. Behind a reverse
 proxy that appends the client IP to `X-Forwarded-For`, set
 `DIDILEAK_TRUST_PROXY=true` so rate limiting keys on that IP. Use
-`DIDILEAK_MAX_UPLOAD_BYTES` to change the 20 MB upload cap (see `SECURITY.md`).
+`DIDILEAK_MAX_UPLOAD_BYTES` to change the 20 MB upload cap, up to the hard
+100 MB ceiling (see `SECURITY.md`).

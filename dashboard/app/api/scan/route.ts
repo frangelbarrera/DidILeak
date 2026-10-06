@@ -16,9 +16,12 @@ export const maxDuration = 60;
 // ---------------------------------------------------------------------------
 
 /** Max upload size in bytes (also enforced client-side in components/upload). */
+const HARD_MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 const _envMaxBytes = Number(process.env.DIDILEAK_MAX_UPLOAD_BYTES);
 const MAX_UPLOAD_BYTES =
-  Number.isFinite(_envMaxBytes) && _envMaxBytes > 0 ? _envMaxBytes : 20 * 1024 * 1024;
+  Number.isFinite(_envMaxBytes) && _envMaxBytes > 0
+    ? Math.min(_envMaxBytes, HARD_MAX_UPLOAD_BYTES)
+    : 20 * 1024 * 1024;
 /** File extensions we are willing to parse (exports are JSON or Claude HTML). */
 const ALLOWED_EXTENSIONS = new Set(["json", "html", "htm"]);
 /** Hard cap on concurrent CLI scans (each spawns a Python process). */

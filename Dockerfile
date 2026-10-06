@@ -14,10 +14,10 @@
 #   DIDILEAK_TRUST_PROXY      "true" behind a reverse proxy that appends the
 #                            client IP to x-forwarded-for (rate limiting
 #                            then keys on that header).
-#   DIDILEAK_MAX_UPLOAD_BYTES max upload size (default 20 MB)
+#   DIDILEAK_MAX_UPLOAD_BYTES max upload size (default 20 MB, hard cap 100 MB)
 
 # ---- Stage 1: Python CLI ----------------------------------------------------
-FROM python:3.12-slim AS python-stage
+FROM python:3.12-slim@sha256:dddfd7e07f9d15aeeca61529320492139d21cac7f0070c00609243e51e4e0016 AS python-stage
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY didileak ./didileak
@@ -26,7 +26,7 @@ COPY didileak ./didileak
 RUN pip install --no-cache-dir .
 
 # ---- Stage 2: dashboard build ------------------------------------------------
-FROM node:22-slim AS node-build
+FROM node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS node-build
 WORKDIR /app/dashboard
 # Lockfile first for layer caching and reproducible installs.
 COPY dashboard/package.json dashboard/package-lock.json ./
@@ -38,10 +38,10 @@ RUN npm run build
 # ---- Stage 3: runtime ---------------------------------------------------------
 # python:3.12-slim keeps the same interpreter the CLI was installed for (its
 # `#!/usr/local/bin/python` shebang and 3.12 site-packages both work as built).
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim@sha256:dddfd7e07f9d15aeeca61529320492139d21cac7f0070c00609243e51e4e0016 AS runtime
 # Node runtime from the official image (same Debian base); running `node`
 # directly as PID 1 gives clean SIGTERM handling without an npm wrapper.
-COPY --from=node:22-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c /usr/local/bin/node /usr/local/bin/node
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libstdc++6 \
     && rm -rf /var/lib/apt/lists/* \

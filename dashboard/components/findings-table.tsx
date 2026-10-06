@@ -13,6 +13,23 @@ interface Props {
 
 type SortKey = "severity" | "rule_name" | "masked_value" | "conversation_title" | "timestamp";
 
+function SortArrow({
+  k,
+  sortKey,
+  sortDir,
+}: {
+  k: SortKey;
+  sortKey: SortKey;
+  sortDir: 1 | -1;
+}) {
+  if (sortKey !== k) return null;
+  return sortDir === -1 ? (
+    <ChevronDown className="inline w-3 h-3 text-text" />
+  ) : (
+    <ChevronUp className="inline w-3 h-3 text-text" />
+  );
+}
+
 export function FindingsTable({ findings, onSelect }: Props) {
   const [query, setQuery] = useState("");
   const [sevFilter, setSevFilter] = useState<Severity | "">("");
@@ -46,9 +63,6 @@ export function FindingsTable({ findings, onSelect }: Props) {
     if (sortKey === k) setSortDir((d) => (d === 1 ? -1 : 1));
     else { setSortKey(k); setSortDir(k === "severity" || k === "timestamp" ? -1 : 1); }
   };
-
-  const SortArrow = ({ k }: { k: SortKey }) =>
-    sortKey === k ? (sortDir === -1 ? <ChevronDown className="inline w-3 h-3 text-text" /> : <ChevronUp className="inline w-3 h-3 text-text" />) : null;
 
   return (
     <div className="space-y-3">
@@ -90,12 +104,12 @@ export function FindingsTable({ findings, onSelect }: Props) {
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-card-soft z-10">
               <tr className="text-text-faint text-[10px] uppercase tracking-wider">
-                <Th onClick={() => toggleSort("severity")} width="w-[100px]">Severity <SortArrow k="severity" /></Th>
-                <Th onClick={() => toggleSort("rule_name")}>Detector <SortArrow k="rule_name" /></Th>
-                <Th onClick={() => toggleSort("masked_value")}>Value <SortArrow k="masked_value" /></Th>
-                <Th onClick={() => toggleSort("conversation_title")}>Conversation <SortArrow k="conversation_title" /></Th>
+                <Th onClick={() => toggleSort("severity")} width="w-[100px]">Severity <SortArrow k="severity" sortKey={sortKey} sortDir={sortDir} /></Th>
+                <Th onClick={() => toggleSort("rule_name")}>Detector <SortArrow k="rule_name" sortKey={sortKey} sortDir={sortDir} /></Th>
+                <Th onClick={() => toggleSort("masked_value")}>Value <SortArrow k="masked_value" sortKey={sortKey} sortDir={sortDir} /></Th>
+                <Th onClick={() => toggleSort("conversation_title")}>Conversation <SortArrow k="conversation_title" sortKey={sortKey} sortDir={sortDir} /></Th>
                 <th className="text-left p-3 font-semibold">Context</th>
-                <Th onClick={() => toggleSort("timestamp")} width="w-[140px]">When <SortArrow k="timestamp" /></Th>
+                <Th onClick={() => toggleSort("timestamp")} width="w-[140px]">When <SortArrow k="timestamp" sortKey={sortKey} sortDir={sortDir} /></Th>
               </tr>
             </thead>
             <tbody>
