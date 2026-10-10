@@ -34,7 +34,7 @@ jobs:
           test "${#sdists[@]}" -eq 1
           echo "sdist=${sdists[0]}" >> "$GITHUB_OUTPUT"
       - name: Generate SBOM
-        uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
           file: ${{ steps.package.outputs.sdist }}
           format: cyclonedx-json
